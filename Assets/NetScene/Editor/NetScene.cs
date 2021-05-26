@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using UnityEditor;
@@ -68,6 +69,8 @@ namespace NetScene
             }
             else
             {
+                Debug.Log(obj.assetId);
+                Debug.Log(Type.GetType(obj.assetId));
                 object ob = JsonUtility.FromJson(obj.json, Type.GetType(obj.assetId));
                 if (ob is UnityEngine.Object)
                 {
@@ -104,6 +107,16 @@ namespace NetScene
         void INetEventListener.OnPeerConnected(NetPeer peer)
         {
             Debug.Log($"{peer.EndPoint.ToString()} connected.");
+            var arr = GameObject.FindObjectsOfType<GameObject>();
+            for (int i = 0; i < arr.Length; i++)
+            {
+                peer.Send(processor.WriteNetSerializable(new SpawnObjectPacket()
+                {
+                    index = i,
+                    assetId = arr[i].GetType().FullName,
+                    json = EditorJsonUtility.ToJson(arr[i])
+                }), DeliveryMethod.ReliableOrdered);
+            }
         }
 
         void INetEventListener.OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
