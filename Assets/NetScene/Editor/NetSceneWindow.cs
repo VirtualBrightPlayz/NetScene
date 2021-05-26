@@ -18,7 +18,7 @@ namespace NetScene
             if (netScene == null)
             {
                 netScene = new NetScene();
-                netScene.OnEnable();
+                netScene.Init();
             }
         }
 
@@ -39,9 +39,9 @@ namespace NetScene
             EditorGUILayout.PropertyField(obj.FindProperty("port"));
             EditorGUILayout.PropertyField(obj.FindProperty("password"));
             obj.ApplyModifiedPropertiesWithoutUndo();
-            if (netScene.manager != null)
+            if (netScene != null)
             {
-                if (netScene.manager.IsRunning)
+                if (netScene.manager != null && netScene.manager.IsRunning)
                 {
                     GUILayout.Label("Connected.");
                     if (GUILayout.Button("Stop"))
@@ -49,16 +49,19 @@ namespace NetScene
                         netScene.Stop();
                     }
                 }
-            }
-            if (GUILayout.Button("Host"))
-            {
-                netScene.password = password;
-                netScene.Host(port);
-            }
-            if (GUILayout.Button("Connect"))
-            {
-                netScene.password = password;
-                netScene.Connect(ip, port);
+                else
+                {
+                    if (GUILayout.Button("Host"))
+                    {
+                        netScene.password = password;
+                        netScene.Host(port);
+                    }
+                    if (GUILayout.Button("Connect"))
+                    {
+                        netScene.password = password;
+                        netScene.Connect(ip, port);
+                    }
+                }
             }
         }
     }

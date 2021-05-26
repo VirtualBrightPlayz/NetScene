@@ -18,7 +18,7 @@ namespace NetScene
 
         public Dictionary<int, UnityEngine.Object> data;
 
-        public void OnEnable()
+        public void Init()
         {
             Debug.Log("INIT");
             password = string.Empty;
