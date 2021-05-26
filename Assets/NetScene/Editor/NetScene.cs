@@ -50,7 +50,7 @@ namespace NetScene
                 List<int> list = new List<int>();
                 foreach (var item in data)
                 {
-                    if (item.Value == null)
+                    if (item.Value == null || item.Value.hideFlags == HideFlags.HideInHierarchy)
                     {
                         manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
                         {
@@ -67,12 +67,16 @@ namespace NetScene
         public void Host(int port)
         {
             isServer = true;
+            id = int.MinValue;
+            data.Clear();
             manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
         }
 
         public void Connect(string ip, int port)
         {
             isServer = false;
+            data.Clear();
+            id = int.MinValue;
             manager.Start();
             manager.Connect(ip, port, password);
         }
