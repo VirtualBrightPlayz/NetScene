@@ -10,20 +10,27 @@ namespace NetScene
         [MenuItem("Tools/NetScene")]
         public static void OpenWindow()
         {
-            if (NetScene.singleton == null)
-                new NetScene();
             NetSceneWindow window = GetWindow<NetSceneWindow>();
         }
 
         public void OnEnable()
         {
-            if (NetScene.singleton == null)
-                new NetScene();
+            if (netScene == null)
+            {
+                netScene = new NetScene();
+                netScene.OnEnable();
+            }
         }
 
         public string ip = "127.0.0.1";
         public int port = 9050;
         public string password;
+        public NetScene netScene;
+
+        public void Update()
+        {
+            netScene.Update();
+        }
 
         public void OnGUI()
         {
@@ -32,17 +39,17 @@ namespace NetScene
             EditorGUILayout.PropertyField(obj.FindProperty("port"));
             EditorGUILayout.PropertyField(obj.FindProperty("password"));
             obj.ApplyModifiedPropertiesWithoutUndo();
-            if (NetScene.singleton != null && NetScene.singleton.manager != null)
+            if (netScene.manager != null)
                 GUILayout.Label("Connected.");
             if (GUILayout.Button("Host"))
             {
-                NetScene.singleton.password = password;
-                NetScene.singleton.Host(port);
+                netScene.password = password;
+                netScene.Host(port);
             }
             if (GUILayout.Button("Connect"))
             {
-                NetScene.singleton.password = password;
-                NetScene.singleton.Connect(ip, port);
+                netScene.password = password;
+                netScene.Connect(ip, port);
             }
         }
     }

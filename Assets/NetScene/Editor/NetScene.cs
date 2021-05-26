@@ -10,24 +10,17 @@ using UnityEngine;
 
 namespace NetScene
 {
-    [InitializeOnLoad]
     public class NetScene : Editor, INetEventListener
     {
-        public static NetScene singleton;
         public NetManager manager;
         public NetPacketProcessor processor;
         public string password;
 
         public Dictionary<int, UnityEngine.Object> data;
 
-        public NetScene()
-        {
-        }
-
         public void OnEnable()
         {
             Debug.Log("INIT");
-            singleton = this;
             password = string.Empty;
             data = new Dictionary<int, UnityEngine.Object>();
             processor = new NetPacketProcessor();
