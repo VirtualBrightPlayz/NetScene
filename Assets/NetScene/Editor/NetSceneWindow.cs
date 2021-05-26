@@ -32,11 +32,6 @@ namespace NetScene
         public string password;
         public NetScene netScene;
 
-        public void Update()
-        {
-            netScene.Update();
-        }
-
         public void OnGUI()
         {
             SerializedObject obj = new SerializedObject(this);

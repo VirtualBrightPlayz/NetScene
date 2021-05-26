@@ -27,7 +27,7 @@ namespace NetScene
             manager = new NetManager(this);
             processor = new NetPacketProcessor();
             processor.SubscribeNetSerializable<SpawnObjectPacket, NetPeer>(SpawnObject, () => new SpawnObjectPacket());
-            // EditorApplication.update += Update;
+            EditorApplication.update += Update;
         }
 
         public void OnDestroy()
@@ -35,7 +35,7 @@ namespace NetScene
             data = null;
             manager = null;
             processor = null;
-            // EditorApplication.update -= Update;
+            EditorApplication.update -= Update;
         }
 
         public void Update()
