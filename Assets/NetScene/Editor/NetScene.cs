@@ -150,7 +150,7 @@ namespace NetScene
             isServer = true;
             id = int.MinValue;
             data.Clear();
-            var arr = GameObject.FindObjectsOfType<UnityEngine.Object>();
+            var arr = GameObject.FindObjectsOfType<GameObject>();
             for (int i = 0; i < arr.Length; i++)
             {
                 ProcessChanges(arr[i].GetInstanceID());
@@ -163,7 +163,6 @@ namespace NetScene
             isServer = false;
             data.Clear();
             id = int.MinValue;
-            var arr = GameObject.FindObjectsOfType<GameObject>();
             EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             manager.Start();
