@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
@@ -113,7 +114,7 @@ namespace NetScene
                 {
                     index = i,
                     assetId = arr[i].GetType().AssemblyQualifiedName,
-                    json = EditorJsonUtility.ToJson(arr[i])
+                    json = EditorJsonUtility.ToJson(arr[i], false)
                 }), DeliveryMethod.ReliableOrdered);
             }
         }
