@@ -65,7 +65,7 @@ namespace NetScene
 
         private void SpawnObject(SpawnObjectPacket obj, NetPeer peer)
         {
-            if (data.ContainsKey(obj.index))
+            if (data.ContainsKey(obj.index) && data[obj.index] != null)
             {
                 EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
             }
@@ -106,7 +106,7 @@ namespace NetScene
             Debug.Log($"{peer.EndPoint.ToString()} connected.");
             if (!isServer)
                 return;
-            var arr = GameObject.FindObjectsOfType<UnityEngine.Object>();
+            var arr = GameObject.FindObjectsOfType<GameObject>();
             for (int i = 0; i < arr.Length; i++)
             {
                 peer.Send(processor.WriteNetSerializable(new SpawnObjectPacket()
