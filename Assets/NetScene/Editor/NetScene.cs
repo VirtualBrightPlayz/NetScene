@@ -39,13 +39,13 @@ namespace NetScene
 
         public void Update()
         {
-            if (manager != null)
-                manager.PollEvents();
+            // if (manager != null)
+            manager.PollEvents();
         }
 
         public void Host(int port)
         {
-            manager.Start(port);
+            manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
         }
 
         public void Connect(string ip, int port)
@@ -84,6 +84,7 @@ namespace NetScene
 
         void INetEventListener.OnNetworkError(IPEndPoint endPoint, SocketError socketError)
         {
+            Debug.Log($"Error from {endPoint.ToString()} - {socketError.ToString()}");
         }
 
         void INetEventListener.OnNetworkLatencyUpdate(NetPeer peer, int latency)
