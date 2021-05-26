@@ -72,11 +72,8 @@ namespace NetScene
             else
             {
                 object ob = Type.GetType(obj.assetId).GetConstructor(new Type[0]).Invoke(new object[0]);
+                data.Add(obj.index, ob as UnityEngine.Object);
                 EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
-                if (ob is UnityEngine.Object)
-                {
-                    data.Add(obj.index, ob as UnityEngine.Object);
-                }
             }
         }
 
@@ -109,7 +106,7 @@ namespace NetScene
             Debug.Log($"{peer.EndPoint.ToString()} connected.");
             if (!isServer)
                 return;
-            var arr = GameObject.FindObjectsOfType<GameObject>();
+            var arr = GameObject.FindObjectsOfType<UnityEngine.Object>();
             for (int i = 0; i < arr.Length; i++)
             {
                 peer.Send(processor.WriteNetSerializable(new SpawnObjectPacket()
