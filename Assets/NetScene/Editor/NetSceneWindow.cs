@@ -15,9 +15,14 @@ namespace NetScene
 
         public void OnEnable()
         {
-            if (netScene == null)
+            if (netScene != null)
             {
-                netScene = new NetScene();
+                netScene.Stop();
+                netScene.OnDestroy();
+                netScene = null;
+            }
+            {
+                netScene = ScriptableObject.CreateInstance<NetScene>();
                 netScene.Init();
             }
         }
@@ -39,6 +44,10 @@ namespace NetScene
             EditorGUILayout.PropertyField(obj.FindProperty("port"));
             EditorGUILayout.PropertyField(obj.FindProperty("password"));
             obj.ApplyModifiedPropertiesWithoutUndo();
+            if (GUILayout.Button("Reload"))
+            {
+                OnEnable();
+            }
             if (netScene != null)
             {
                 if (netScene.manager != null && netScene.manager.IsRunning)
@@ -62,6 +71,9 @@ namespace NetScene
                         netScene.Connect(ip, port);
                     }
                 }
+            }
+            else
+            {
             }
         }
     }

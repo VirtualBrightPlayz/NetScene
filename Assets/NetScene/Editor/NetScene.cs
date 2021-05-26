@@ -23,13 +23,17 @@ namespace NetScene
             Debug.Log("INIT");
             password = string.Empty;
             data = new Dictionary<int, UnityEngine.Object>();
+            manager = new NetManager(this);
             processor = new NetPacketProcessor();
             processor.SubscribeNetSerializable<SpawnObjectPacket, NetPeer>(SpawnObject, () => new SpawnObjectPacket());
             // EditorApplication.update += Update;
         }
 
-        void OnDestroy()
+        public void OnDestroy()
         {
+            data = null;
+            manager = null;
+            processor = null;
             // EditorApplication.update -= Update;
         }
 
@@ -41,20 +45,19 @@ namespace NetScene
 
         public void Host(int port)
         {
-            manager = new NetManager(this);
             manager.Start(port);
         }
 
         public void Connect(string ip, int port)
         {
-            manager = new NetManager(this);
             manager.Start();
             manager.Connect(ip, port, password);
         }
 
         public void Stop()
         {
-            manager.Stop(true);
+            if (manager != null)
+                manager.Stop(true);
         }
 
         private void SpawnObject(SpawnObjectPacket obj, NetPeer peer)
