@@ -52,6 +52,11 @@ namespace NetScene
             manager.Connect(ip, port, password);
         }
 
+        public void Stop()
+        {
+            manager.Stop(true);
+        }
+
         private void SpawnObject(SpawnObjectPacket obj, NetPeer peer)
         {
             if (data.ContainsKey(obj.index))

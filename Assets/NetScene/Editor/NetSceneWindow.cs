@@ -40,7 +40,16 @@ namespace NetScene
             EditorGUILayout.PropertyField(obj.FindProperty("password"));
             obj.ApplyModifiedPropertiesWithoutUndo();
             if (netScene.manager != null)
-                GUILayout.Label("Connected.");
+            {
+                if (netScene.manager.IsRunning)
+                {
+                    GUILayout.Label("Connected.");
+                    if (GUILayout.Button("Stop"))
+                    {
+                        netScene.Stop();
+                    }
+                }
+            }
             if (GUILayout.Button("Host"))
             {
                 netScene.password = password;
