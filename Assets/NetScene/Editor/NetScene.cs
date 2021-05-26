@@ -69,9 +69,8 @@ namespace NetScene
             }
             else
             {
-                Debug.Log(obj.assetId);
-                Debug.Log(Type.ReflectionOnlyGetType(obj.assetId, false, true));
-                object ob = JsonUtility.FromJson(obj.json, Type.GetType(obj.assetId));
+                object ob = Type.GetType(obj.assetId).GetConstructor(new Type[0]).Invoke(new object[0]);
+                EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
                 if (ob is UnityEngine.Object)
                 {
                     data.Add(obj.index, ob as UnityEngine.Object);
@@ -112,7 +111,7 @@ namespace NetScene
                 peer.Send(processor.WriteNetSerializable(new SpawnObjectPacket()
                 {
                     index = i,
-                    assetId = arr[i].GetType().FullName,
+                    assetId = arr[i].GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(arr[i])
                 }), DeliveryMethod.ReliableOrdered);
             }
