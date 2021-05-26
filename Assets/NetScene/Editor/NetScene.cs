@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
@@ -78,6 +79,30 @@ namespace NetScene
             }
         }
 
+        private void ProcessRootObject(int id)
+        {
+            var obj = EditorUtility.InstanceIDToObject(id) as GameObject;
+            if (obj == null)
+                return;
+            for (int i = 0; i < obj.transform.childCount; i++)
+            {
+                obj.transform.GetChild(i);
+            }
+        }
+
+        private int GetChildIndex(UnityEngine.Object obj)
+        {
+            if (obj is GameObject go)
+            {
+                return go.transform.GetSiblingIndex();
+            }
+            else if (obj is Component cmp)
+            {
+                return cmp.GetComponents<Component>().ToList().IndexOf(cmp);
+            }
+            return -1;
+        }
+
         private void ProcessChanges(int id)
         {
             var obj = EditorUtility.InstanceIDToObject(id);
@@ -95,6 +120,7 @@ namespace NetScene
                 var packet = new SpawnObjectPacket()
                 {
                     index = id,
+                    childIndex = GetChildIndex(obj),
                     assetId = obj.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(obj, false)
                 };
@@ -150,10 +176,13 @@ namespace NetScene
             isServer = true;
             id = int.MinValue;
             data.Clear();
-            var arr = GameObject.FindObjectsOfType<GameObject>();
-            for (int i = 0; i < arr.Length; i++)
+            for (int j = 0; j < EditorSceneManager.sceneCount; j++)
             {
-                ProcessChanges(arr[i].GetInstanceID());
+                var arr = EditorSceneManager.GetSceneAt(j).GetRootGameObjects();
+                for (int i = 0; i < arr.Length; i++)
+                {
+                    ProcessChanges(arr[i].GetInstanceID());
+                }
             }
             manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
         }
@@ -234,6 +263,7 @@ namespace NetScene
                 var packet = new SpawnObjectPacket()
                 {
                     index = item.Key,
+                    childIndex = GetChildIndex(item.Value),
                     assetId = item.Value.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(item.Value, false)
                 };
