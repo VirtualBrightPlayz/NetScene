@@ -16,7 +16,7 @@ namespace NetScene
         public NetManager manager;
         public NetPacketProcessor processor;
         public string password;
-
+        public bool isServer;
         public Dictionary<int, UnityEngine.Object> data;
 
         public void Init()
@@ -46,11 +46,13 @@ namespace NetScene
 
         public void Host(int port)
         {
+            isServer = true;
             manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
         }
 
         public void Connect(string ip, int port)
         {
+            isServer = false;
             manager.Start();
             manager.Connect(ip, port, password);
         }
@@ -105,6 +107,8 @@ namespace NetScene
         void INetEventListener.OnPeerConnected(NetPeer peer)
         {
             Debug.Log($"{peer.EndPoint.ToString()} connected.");
+            if (!isServer)
+                return;
             var arr = GameObject.FindObjectsOfType<GameObject>();
             for (int i = 0; i < arr.Length; i++)
             {
