@@ -82,8 +82,7 @@ namespace NetScene
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
         {
             Debug.Log($"{request.RemoteEndPoint.ToString()} requested to connect.");
-            request.Accept();
-            // request.AcceptIfKey(password);
+            request.AcceptIfKey(password);
         }
 
         void INetEventListener.OnNetworkError(IPEndPoint endPoint, SocketError socketError)
