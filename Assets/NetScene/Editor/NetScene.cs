@@ -55,6 +55,7 @@ namespace NetScene
         public void Connect(string ip, int port)
         {
             manager = new NetManager(this);
+            manager.Start();
             manager.Connect(ip, port, password);
         }
 
