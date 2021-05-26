@@ -105,7 +105,7 @@ namespace NetScene
         {
             if (data.ContainsKey(obj.index) && data[obj.index] != null)
             {
-                DestroyImmediate(data[obj.index], false);
+                DestroyImmediate(data[obj.index]);
                 data.Remove(obj.index);
             }
         }
