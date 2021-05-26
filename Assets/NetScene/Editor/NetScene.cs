@@ -25,12 +25,12 @@ namespace NetScene
             data = new Dictionary<int, UnityEngine.Object>();
             processor = new NetPacketProcessor();
             processor.SubscribeNetSerializable<SpawnObjectPacket, NetPeer>(SpawnObject, () => new SpawnObjectPacket());
-            EditorApplication.update += Update;
+            // EditorApplication.update += Update;
         }
 
         void OnDestroy()
         {
-            EditorApplication.update -= Update;
+            // EditorApplication.update -= Update;
         }
 
         public void Update()
@@ -75,6 +75,7 @@ namespace NetScene
 
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
         {
+            Debug.Log($"{request.RemoteEndPoint.ToString()} requested to connect.");
             request.AcceptIfKey(password);
         }
 
