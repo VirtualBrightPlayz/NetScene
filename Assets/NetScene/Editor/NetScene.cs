@@ -181,7 +181,7 @@ namespace NetScene
                 var arr = EditorSceneManager.GetSceneAt(j).GetRootGameObjects();
                 for (int i = 0; i < arr.Length; i++)
                 {
-                    ProcessChanges(arr[i].GetInstanceID());
+                    ProcessRootObject(arr[i].GetInstanceID());
                 }
             }
             manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
@@ -213,9 +213,17 @@ namespace NetScene
             else
             {
                 Type t = Type.GetType(obj.assetId);
-                Debug.Assert(t == null, obj.assetId);
-                object ob = t.GetConstructor(new Type[0]).Invoke(new object[0]);
-                data.Add(obj.index, ob as UnityEngine.Object);
+                Debug.Assert(t != null, obj.assetId);
+                if (t.IsSubclassOf(typeof(Component)))
+                {
+                    object ob = (data[obj.parentIndex] as GameObject).AddComponent(t);
+                    data.Add(obj.index, ob as UnityEngine.Object);
+                }
+                else
+                {
+                    object ob = t.GetConstructor(new Type[0]).Invoke(new object[0]);
+                    data.Add(obj.index, ob as UnityEngine.Object);
+                }
                 EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
             }
         }

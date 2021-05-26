@@ -8,6 +8,7 @@ namespace NetScene
     public struct SpawnObjectPacket : INetSerializable
     {
         public int index;
+        public int parentIndex;
         public int childIndex;
         public string assetId;
         public string json;
@@ -15,6 +16,7 @@ namespace NetScene
         void INetSerializable.Deserialize(NetDataReader reader)
         {
             index = reader.GetInt();
+            parentIndex = reader.GetInt();
             childIndex = reader.GetInt();
             assetId = reader.GetString();
             json = reader.GetString();
@@ -23,6 +25,7 @@ namespace NetScene
         void INetSerializable.Serialize(NetDataWriter writer)
         {
             writer.Put(index);
+            writer.Put(parentIndex);
             writer.Put(childIndex);
             writer.Put(assetId);
             writer.Put(json);
