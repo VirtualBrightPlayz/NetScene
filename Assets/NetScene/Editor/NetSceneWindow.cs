@@ -15,6 +15,12 @@ namespace NetScene
             NetSceneWindow window = GetWindow<NetSceneWindow>();
         }
 
+        public void OnEnable()
+        {
+            if (NetScene.singleton == null)
+                new NetScene();
+        }
+
         public string ip = "127.0.0.1";
         public int port = 9050;
         public string password;
