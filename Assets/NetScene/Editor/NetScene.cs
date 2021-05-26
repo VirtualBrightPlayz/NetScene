@@ -38,6 +38,7 @@ namespace NetScene
             processor.SubscribeNetSerializable<SpawnObjectPacket, NetPeer>(SpawnObject, () => new SpawnObjectPacket());
             processor.SubscribeNetSerializable<DestroyObjectPacket, NetPeer>(DestroyObject, () => new DestroyObjectPacket());
             EditorApplication.update += Update;
+            ObjectChangeEvents.changesPublished += ObjectChanged;
         }
 
         public void OnDestroy()
@@ -46,6 +47,16 @@ namespace NetScene
             manager = null;
             processor = null;
             EditorApplication.update -= Update;
+            ObjectChangeEvents.changesPublished -= ObjectChanged;
+        }
+
+        private void ObjectChanged(ref ObjectChangeEventStream stream)
+        {
+            ProcessChanges();
+        }
+
+        private void ProcessChanges()
+        {
         }
 
         public void Update()
@@ -65,7 +76,6 @@ namespace NetScene
                         {
                             index = item.Key
                         }), DeliveryMethod.ReliableOrdered);
-                        Debug.Log("remove" + item.Key);
                         list.Add(item.Key);
                     }
                 }
@@ -76,7 +86,14 @@ namespace NetScene
                 {
                     if (!data.ContainsValue(arr[i]))
                     {
-                        data.Add(id++, arr[i]);
+                        var packet = new SpawnObjectPacket()
+                        {
+                            index = id++,
+                            assetId = arr[i].GetType().AssemblyQualifiedName,
+                            json = EditorJsonUtility.ToJson(arr[i], false)
+                        };
+                        manager.SendToAll(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
+                        data.Add(packet.index, arr[i]);
                     }
                 }
             }
