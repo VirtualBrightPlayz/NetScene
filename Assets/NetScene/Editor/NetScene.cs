@@ -19,6 +19,7 @@ namespace NetScene
         public string password;
         public bool isServer;
         public Dictionary<int, UnityEngine.Object> data;
+        int id = int.MinValue;
 
         public void Init()
         {
@@ -28,6 +29,7 @@ namespace NetScene
             manager = new NetManager(this);
             processor = new NetPacketProcessor();
             processor.SubscribeNetSerializable<SpawnObjectPacket, NetPeer>(SpawnObject, () => new SpawnObjectPacket());
+            processor.SubscribeNetSerializable<DestroyObjectPacket, NetPeer>(DestroyObject, () => new DestroyObjectPacket());
             EditorApplication.update += Update;
         }
 
@@ -43,6 +45,23 @@ namespace NetScene
         {
             // if (manager != null)
             manager.PollEvents();
+            if (isServer)
+            {
+                List<int> list = new List<int>();
+                foreach (var item in data)
+                {
+                    if (item.Value == null)
+                    {
+                        manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
+                        {
+                            index = item.Key
+                        }), DeliveryMethod.ReliableOrdered);
+                        list.Add(item.Key);
+                    }
+                }
+                foreach (var item in list)
+                    data.Remove(item);
+            }
         }
 
         public void Host(int port)
@@ -75,6 +94,15 @@ namespace NetScene
                 object ob = Type.GetType(obj.assetId).GetConstructor(new Type[0]).Invoke(new object[0]);
                 data.Add(obj.index, ob as UnityEngine.Object);
                 EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
+            }
+        }
+
+        private void DestroyObject(DestroyObjectPacket obj, NetPeer peer)
+        {
+            if (data.ContainsKey(obj.index) && data[obj.index] != null)
+            {
+                DestroyImmediate(data[obj.index], false);
+                data.Remove(obj.index);
             }
         }
 
@@ -112,7 +140,7 @@ namespace NetScene
             {
                 peer.Send(processor.WriteNetSerializable(new SpawnObjectPacket()
                 {
-                    index = i,
+                    index = id++,
                     assetId = arr[i].GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(arr[i], false)
                 }), DeliveryMethod.ReliableOrdered);
