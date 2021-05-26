@@ -52,11 +52,56 @@ namespace NetScene
 
         private void ObjectChanged(ref ObjectChangeEventStream stream)
         {
-            ProcessChanges();
+            for (int i = 0; i < stream.length; i++)
+            {
+                switch (stream.GetEventType(i))
+                {
+                    case ObjectChangeKind.CreateGameObjectHierarchy:
+                    {
+                        stream.GetCreateGameObjectHierarchyEvent(i, out var d);
+                        ProcessChanges(d.instanceId);
+                    }
+                    break;
+                    case ObjectChangeKind.DestroyGameObjectHierarchy:
+                    {
+                        stream.GetDestroyGameObjectHierarchyEvent(i, out var d);
+                        ProcessChanges(d.instanceId);
+                    }
+                    break;
+                    case ObjectChangeKind.ChangeGameObjectOrComponentProperties:
+                    {
+                        stream.GetChangeGameObjectOrComponentPropertiesEvent(i, out var d);
+                        ProcessChanges(d.instanceId);
+                    }
+                    break;
+                }
+            }
         }
 
-        private void ProcessChanges()
+        private void ProcessChanges(int id)
         {
+            var obj = EditorUtility.InstanceIDToObject(id);
+            if (obj.hideFlags.HasFlag(HideFlags.DontSave))
+            {
+                manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
+                {
+                    index = obj.GetInstanceID()
+                }), DeliveryMethod.ReliableOrdered);
+                if (!data.ContainsKey(obj.GetInstanceID()))
+                    data.Remove(obj.GetInstanceID());
+            }
+            else
+            {
+                var packet = new SpawnObjectPacket()
+                {
+                    index = obj.GetInstanceID(),
+                    assetId = obj.GetType().AssemblyQualifiedName,
+                    json = EditorJsonUtility.ToJson(obj, false)
+                };
+                manager.SendToAll(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
+                if (!data.ContainsKey(obj.GetInstanceID()))
+                    data.Add(obj.GetInstanceID(), obj);
+            }
         }
 
         public void Update()
@@ -65,7 +110,7 @@ namespace NetScene
             {
                 return;
             }
-            if (isServer)
+            /*if (isServer)
             {
                 List<int> list = new List<int>();
                 foreach (var item in data)
@@ -96,7 +141,7 @@ namespace NetScene
                         data.Add(packet.index, arr[i]);
                     }
                 }
-            }
+            }*/
             manager.PollEvents();
         }
 
@@ -105,7 +150,11 @@ namespace NetScene
             isServer = true;
             id = int.MinValue;
             data.Clear();
-
+            var arr = GameObject.FindObjectsOfType<UnityEngine.Object>();
+            for (int i = 0; i < arr.Length; i++)
+            {
+                ProcessChanges(arr[i].GetInstanceID());
+            }
             manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
         }
 
