@@ -81,26 +81,26 @@ namespace NetScene
         private void ProcessChanges(int id)
         {
             var obj = EditorUtility.InstanceIDToObject(id);
-            if (obj.hideFlags.HasFlag(HideFlags.DontSave))
+            if (obj == null || obj.hideFlags.HasFlag(HideFlags.DontSave))
             {
                 manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
                 {
-                    index = obj.GetInstanceID()
+                    index = id
                 }), DeliveryMethod.ReliableOrdered);
-                if (!data.ContainsKey(obj.GetInstanceID()))
-                    data.Remove(obj.GetInstanceID());
+                if (!data.ContainsKey(id))
+                    data.Remove(id);
             }
             else
             {
                 var packet = new SpawnObjectPacket()
                 {
-                    index = obj.GetInstanceID(),
+                    index = id,
                     assetId = obj.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(obj, false)
                 };
                 manager.SendToAll(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
-                if (!data.ContainsKey(obj.GetInstanceID()))
-                    data.Add(obj.GetInstanceID(), obj);
+                if (!data.ContainsKey(id))
+                    data.Add(id, obj);
             }
         }
 
