@@ -10,6 +10,8 @@ namespace NetScene
         [MenuItem("Tools/NetScene")]
         public static void OpenWindow()
         {
+            if (NetScene.singleton == null)
+                new NetScene();
             NetSceneWindow window = GetWindow<NetSceneWindow>();
         }
 
