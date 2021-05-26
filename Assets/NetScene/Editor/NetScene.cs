@@ -184,7 +184,9 @@ namespace NetScene
             }
             else
             {
-                object ob = Type.GetType(obj.assetId).GetConstructor(new Type[0]).Invoke(new object[0]);
+                Type t = Type.GetType(obj.assetId);
+                Debug.Assert(t == null, obj.assetId);
+                object ob = t.GetConstructor(new Type[0]).Invoke(new object[0]);
                 data.Add(obj.index, ob as UnityEngine.Object);
                 EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
             }
