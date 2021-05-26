@@ -15,15 +15,9 @@ namespace NetScene
 
         public void OnEnable()
         {
-            if (netScene != null)
+            if (netScene == null)
             {
-                netScene.Stop();
-                netScene.OnDestroy();
-                netScene = null;
-            }
-            {
-                netScene = ScriptableObject.CreateInstance<NetScene>();
-                netScene.Init();
+                netScene = new NetScene();
             }
         }
 
@@ -41,6 +35,12 @@ namespace NetScene
             obj.ApplyModifiedPropertiesWithoutUndo();
             if (GUILayout.Button("Reload"))
             {
+                if (netScene != null)
+                {
+                    netScene.Stop();
+                    netScene.OnDestroy();
+                    netScene = null;
+                }
                 OnEnable();
             }
             if (netScene != null)

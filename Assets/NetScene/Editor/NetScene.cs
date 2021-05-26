@@ -8,11 +8,13 @@ using System.Reflection;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace NetScene
 {
-    public class NetScene : Editor, INetEventListener
+    public class NetScene : INetEventListener
     {
         public NetManager manager;
         public NetPacketProcessor processor;
@@ -20,6 +22,11 @@ namespace NetScene
         public bool isServer;
         public Dictionary<int, UnityEngine.Object> data;
         int id = int.MinValue;
+
+        public NetScene()
+        {
+            Init();
+        }
 
         public void Init()
         {
@@ -43,25 +50,37 @@ namespace NetScene
 
         public void Update()
         {
-            // if (manager != null)
-            manager.PollEvents();
+            if (manager == null)
+            {
+                return;
+            }
             if (isServer)
             {
                 List<int> list = new List<int>();
                 foreach (var item in data)
                 {
-                    if (item.Value == null || item.Value.hideFlags == HideFlags.HideInHierarchy)
+                    if (item.Value == null || item.Value.hideFlags != HideFlags.None)
                     {
                         manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
                         {
                             index = item.Key
                         }), DeliveryMethod.ReliableOrdered);
+                        Debug.Log("remove" + item.Key);
                         list.Add(item.Key);
                     }
                 }
                 foreach (var item in list)
                     data.Remove(item);
+                var arr = GameObject.FindObjectsOfType<GameObject>();
+                for (int i = 0; i < arr.Length; i++)
+                {
+                    if (!data.ContainsValue(arr[i]))
+                    {
+                        data.Add(id++, arr[i]);
+                    }
+                }
             }
+            manager.PollEvents();
         }
 
         public void Host(int port)
@@ -69,6 +88,7 @@ namespace NetScene
             isServer = true;
             id = int.MinValue;
             data.Clear();
+
             manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
         }
 
@@ -77,6 +97,9 @@ namespace NetScene
             isServer = false;
             data.Clear();
             id = int.MinValue;
+            var arr = GameObject.FindObjectsOfType<GameObject>();
+            EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             manager.Start();
             manager.Connect(ip, port, password);
         }
@@ -105,7 +128,7 @@ namespace NetScene
         {
             if (data.ContainsKey(obj.index) && data[obj.index] != null)
             {
-                DestroyImmediate(data[obj.index]);
+                UnityEngine.Object.DestroyImmediate(data[obj.index]);
                 data.Remove(obj.index);
             }
         }
@@ -139,15 +162,15 @@ namespace NetScene
             Debug.Log($"{peer.EndPoint.ToString()} connected.");
             if (!isServer)
                 return;
-            var arr = GameObject.FindObjectsOfType<GameObject>();
-            for (int i = 0; i < arr.Length; i++)
+            foreach (var item in data)
             {
-                peer.Send(processor.WriteNetSerializable(new SpawnObjectPacket()
+                var packet = new SpawnObjectPacket()
                 {
-                    index = id++,
-                    assetId = arr[i].GetType().AssemblyQualifiedName,
-                    json = EditorJsonUtility.ToJson(arr[i], false)
-                }), DeliveryMethod.ReliableOrdered);
+                    index = item.Key,
+                    assetId = item.Value.GetType().AssemblyQualifiedName,
+                    json = EditorJsonUtility.ToJson(item.Value, false)
+                };
+                peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
             }
         }
 
