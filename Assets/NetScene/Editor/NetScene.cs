@@ -70,7 +70,7 @@ namespace NetScene
             else
             {
                 Debug.Log(obj.assetId);
-                Debug.Log(Type.GetType(obj.assetId));
+                Debug.Log(Type.ReflectionOnlyGetType(obj.assetId, false, true));
                 object ob = JsonUtility.FromJson(obj.json, Type.GetType(obj.assetId));
                 if (ob is UnityEngine.Object)
                 {
