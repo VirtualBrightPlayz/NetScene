@@ -291,13 +291,12 @@ namespace NetScene
 
         private void UpdateIndex(UpdateIndexPacket obj, NetPeer peer)
         {
-            Debug.Log(id);
             id = obj.index;
             if (isServer)
                 manager.SendToAll(processor.WriteNetSerializable(new UpdateIndexPacket()
                 {
                     index = id,
-                }), DeliveryMethod.ReliableOrdered);
+                }), DeliveryMethod.ReliableOrdered, peer);
         }
 
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
