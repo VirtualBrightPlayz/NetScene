@@ -138,7 +138,11 @@ namespace NetScene
                 if (ob is GameObject go)
                 {
                     Handles.color = item.Value;
-                    Handles.Label(go.transform.position, "Selected");
+                    Handles.DrawWireDisc(go.transform.position, (view.camera.transform.position - go.transform.position).normalized, 5f);
+                    /*Gizmos.color = item.Value;
+                    Gizmos.DrawWireSphere(go.transform.position, 5f);*/
+                    // Handles.DrawSelectionFrame(0, go.transform.position, go.transform.rotation, 5f, EventType.Layout);
+                    // Handles.Label(go.transform.position, "Selected", GUIUtility);
                 }
             }
             // Handles.DrawSelectionFrame(0, );
@@ -324,7 +328,7 @@ namespace NetScene
             {
                 if (obj.selected)
                 {
-                    selections[obj.index] = new Color(obj.r, obj.b, obj.g, 1f);
+                    selections[obj.index] = new Color(obj.r, obj.g, obj.b, 1f);
                 }
                 else
                 {
@@ -335,7 +339,7 @@ namespace NetScene
             {
                 if (obj.selected)
                 {
-                    selections.Add(obj.index, new Color(obj.r, obj.b, obj.g, 1f));
+                    selections.Add(obj.index, new Color(obj.r, obj.g, obj.b, 1f));
                 }
             }
             if (isServer)
