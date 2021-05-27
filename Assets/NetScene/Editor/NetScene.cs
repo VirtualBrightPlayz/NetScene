@@ -97,7 +97,7 @@ namespace NetScene
         private void ProcessRootObject(int id)
         {
             ProcessChanges(id);
-            if (netdata2.ContainsKey(id))
+            if (!netdata2.ContainsKey(id))
                 return;
             var obj = EditorUtility.InstanceIDToObject(netdata2[id]) as GameObject;
             if (obj == null)
