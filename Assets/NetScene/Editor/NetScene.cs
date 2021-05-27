@@ -176,6 +176,8 @@ namespace NetScene
                 if (!data.ContainsKey(id))
                 {
                     data.Add(id, obj);
+                    netdata.Add(obj.GetInstanceID(), id);
+                    netdata2.Add(id, obj.GetInstanceID());
                 }
             }
         }
@@ -237,19 +239,22 @@ namespace NetScene
                     {
                         Debug.LogError("Parent Does not exist!");
                         // return;
-                        // data.Add(obj.parentIndex, new GameObject());
                     }
                     UnityEngine.Object ob = (data[obj.parentIndex] as GameObject).GetComponent(t);
                     if (ob == null)
                     {
                         ob = (data[obj.parentIndex] as GameObject).AddComponent(t);
                     }
-                    data.Add(obj.index, ob as UnityEngine.Object);
+                    data.Add(obj.index, ob);
+                    netdata.Add(ob.GetInstanceID(), obj.index);
+                    netdata2.Add(obj.index, ob.GetInstanceID());
                 }
                 else
                 {
-                    object ob = t.GetConstructor(new Type[0]).Invoke(new object[0]);
-                    data.Add(obj.index, ob as UnityEngine.Object);
+                    UnityEngine.Object ob = t.GetConstructor(new Type[0]).Invoke(new object[0]) as UnityEngine.Object;
+                    data.Add(obj.index, ob);
+                    netdata.Add(ob.GetInstanceID(), obj.index);
+                    netdata2.Add(obj.index, ob.GetInstanceID());
                 }
                 Debug.Assert(data[obj.index] == null, obj.index);
                 EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
