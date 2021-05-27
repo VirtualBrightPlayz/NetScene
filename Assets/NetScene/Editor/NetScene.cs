@@ -124,14 +124,14 @@ namespace NetScene
             if (obj is GameObject go)
             {
                 if (go.transform.parent == null)
-                    return -1;
+                    return GetNetworkId(obj.GetInstanceID());
                 return GetNetworkId(go.transform.parent.gameObject.GetInstanceID());
             }
             else if (obj is Component cmp)
             {
                 return GetNetworkId(cmp.gameObject.GetInstanceID());
             }
-            return -1;
+            return GetNetworkId(obj.GetInstanceID());
         }
 
         private int GetNetworkId(int unityid)
@@ -236,7 +236,7 @@ namespace NetScene
                     if (!data.ContainsKey(obj.parentIndex))
                     {
                         Debug.LogError("Parent Does not exist!");
-                        return;
+                        // return;
                         // data.Add(obj.parentIndex, new GameObject());
                     }
                     UnityEngine.Object ob = (data[obj.parentIndex] as GameObject).GetComponent(t);
