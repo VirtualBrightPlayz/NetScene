@@ -308,7 +308,6 @@ namespace NetScene
 
         private void DestroyObject(DestroyObjectPacket obj, NetPeer peer)
         {
-            Debug.Log(data[obj.index]);
             if (data.ContainsKey(obj.index) && data[obj.index] != null)
             {
                 netdata.Remove(data[obj.index].GetInstanceID());
