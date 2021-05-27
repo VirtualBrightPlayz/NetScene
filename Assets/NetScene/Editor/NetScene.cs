@@ -152,7 +152,7 @@ namespace NetScene
                     Handles.color = peers[item.Value].color;
                     Handles.DrawWireDisc(go.transform.position, (view.camera.transform.position - go.transform.position).normalized, 1f);
                     GUI.color = peers[item.Value].color;
-                    Handles.Label(go.transform.position, "Selected");
+                    Handles.Label(go.transform.position, peers[item.Value].name);
                 }
             }
         }
