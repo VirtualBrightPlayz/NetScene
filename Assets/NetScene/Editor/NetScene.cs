@@ -146,7 +146,7 @@ namespace NetScene
         {
             if (!netdata.ContainsKey(unityid))
             {
-                netdata.Add(unityid, id++);
+                netdata.Add(unityid, ++id);
                 netdata2.Add(netdata[unityid], unityid);
                 manager.SendToAll(processor.WriteNetSerializable(new UpdateIndexPacket()
                 {
