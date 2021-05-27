@@ -97,6 +97,8 @@ namespace NetScene
         private void ProcessRootObject(int id)
         {
             ProcessChanges(id);
+            if (netdata2.ContainsKey(id))
+                return;
             var obj = EditorUtility.InstanceIDToObject(netdata2[id]) as GameObject;
             if (obj == null)
                 return;
@@ -157,7 +159,7 @@ namespace NetScene
         private void ProcessChanges(int id)
         {
             var obj = EditorUtility.InstanceIDToObject(netdata2[id]);
-            if (obj == null || obj.hideFlags.HasFlag(HideFlags.DontSave))
+            if (obj == null)
             {
                 manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
                 {
@@ -165,7 +167,7 @@ namespace NetScene
                 }), DeliveryMethod.ReliableOrdered);
                 if (data.ContainsKey(id))
                 {
-                    netdata.Remove(data[id].GetInstanceID());
+                    netdata.Remove(netdata2[id]);
                     netdata2.Remove(id);
                     data.Remove(id);
                 }
