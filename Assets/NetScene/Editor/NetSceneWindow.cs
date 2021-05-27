@@ -24,7 +24,7 @@ namespace NetScene
         public string ip = "127.0.0.1";
         public int port = 9050;
         public string password;
-        public Color color;
+        public Color color = Color.white;
         public NetScene netScene;
 
         public void OnGUI()
