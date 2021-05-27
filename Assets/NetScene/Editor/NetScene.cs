@@ -235,7 +235,9 @@ namespace NetScene
                 {
                     if (!data.ContainsKey(obj.parentIndex))
                     {
-                        data.Add(obj.parentIndex, new GameObject());
+                        Debug.LogError("Parent Does not exist!");
+                        return;
+                        // data.Add(obj.parentIndex, new GameObject());
                     }
                     UnityEngine.Object ob = (data[obj.parentIndex] as GameObject).GetComponent(t);
                     if (ob == null)
