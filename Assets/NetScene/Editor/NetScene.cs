@@ -165,7 +165,7 @@ namespace NetScene
         private void ProcessChanges(int id)
         {
             var obj = EditorUtility.InstanceIDToObject(netdata2[id]);
-            if (obj == null)
+            if (obj == null || obj.hideFlags.HasFlag(HideFlags.DontSave))
             {
                 manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
                 {
