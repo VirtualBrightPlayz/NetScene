@@ -84,6 +84,12 @@ namespace NetScene
                         ProcessRootObject(GetNetworkId(d.instanceId));
                     }
                     break;
+                    case ObjectChangeKind.ChangeGameObjectStructure:
+                    {
+                        stream.GetChangeGameObjectStructureEvent(i, out var d);
+                        ProcessRootObject(GetNetworkId(d.instanceId));
+                    }
+                    break;
                 }
             }
         }
@@ -226,6 +232,8 @@ namespace NetScene
         {
             if (data.ContainsKey(obj.index) && data[obj.index] != null)
             {
+                if (isServer)
+                    Undo.RecordObject(data[obj.index], $"{peer.EndPoint} Network Modify Object {data[obj.index].name}");
                 EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
             }
             else
@@ -255,6 +263,8 @@ namespace NetScene
                     netdata2.Add(obj.index, ob.GetInstanceID());
                 }
                 Debug.Assert(data[obj.index] == null, obj.index);
+                if (isServer)
+                    Undo.RecordObject(data[obj.index], $"{peer.EndPoint} Network Modify Object {data[obj.index].name}");
                 EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
             }
         }
