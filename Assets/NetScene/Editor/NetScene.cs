@@ -22,6 +22,8 @@ namespace NetScene
         public string password;
         public bool isServer;
         public Dictionary<int, UnityEngine.Object> data;
+        // first is local unity id; second is net id
+        public Dictionary<int, int> netdata;
         int id = int.MinValue;
 
         public NetScene()
@@ -34,6 +36,7 @@ namespace NetScene
             Debug.Log("INIT");
             password = string.Empty;
             data = new Dictionary<int, UnityEngine.Object>();
+            netdata = new Dictionary<int, int>();
             manager = new NetManager(this);
             processor = new NetPacketProcessor();
             processor.SubscribeNetSerializable<SpawnObjectPacket, NetPeer>(SpawnObject, () => new SpawnObjectPacket());
@@ -45,6 +48,7 @@ namespace NetScene
         public void OnDestroy()
         {
             data = null;
+            netdata = null;
             manager = null;
             processor = null;
             EditorApplication.update -= Update;
@@ -125,6 +129,11 @@ namespace NetScene
             return -1;
         }
 
+        private int GetNetIndex(int id)
+        {
+            return netdata[id];
+        }
+
         private void ProcessChanges(int id)
         {
             var obj = EditorUtility.InstanceIDToObject(id);
@@ -132,24 +141,30 @@ namespace NetScene
             {
                 manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
                 {
-                    index = id
+                    index = GetNetIndex(id)
                 }), DeliveryMethod.ReliableOrdered);
                 if (!data.ContainsKey(id))
+                {
                     data.Remove(id);
+                    if (!isServer)
+                    netdata.Remove(id);
+                }
             }
             else
             {
                 var packet = new SpawnObjectPacket()
                 {
-                    index = id,
-                    childIndex = GetChildIndex(obj),
-                    parentIndex = GetParentIndex(obj),
+                    index = GetNetIndex(id),
+                    childIndex = GetNetIndex(GetChildIndex(obj)),
+                    parentIndex = GetNetIndex(GetParentIndex(obj)),
                     assetId = obj.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(obj, false)
                 };
                 manager.SendToAll(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
                 if (!data.ContainsKey(id))
+                {
                     data.Add(id, obj);
+                }
             }
         }
 
@@ -159,38 +174,6 @@ namespace NetScene
             {
                 return;
             }
-            /*if (isServer)
-            {
-                List<int> list = new List<int>();
-                foreach (var item in data)
-                {
-                    if (item.Value == null || item.Value.hideFlags != HideFlags.None)
-                    {
-                        manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
-                        {
-                            index = item.Key
-                        }), DeliveryMethod.ReliableOrdered);
-                        list.Add(item.Key);
-                    }
-                }
-                foreach (var item in list)
-                    data.Remove(item);
-                var arr = GameObject.FindObjectsOfType<GameObject>();
-                for (int i = 0; i < arr.Length; i++)
-                {
-                    if (!data.ContainsValue(arr[i]))
-                    {
-                        var packet = new SpawnObjectPacket()
-                        {
-                            index = id++,
-                            assetId = arr[i].GetType().AssemblyQualifiedName,
-                            json = EditorJsonUtility.ToJson(arr[i], false)
-                        };
-                        manager.SendToAll(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
-                        data.Add(packet.index, arr[i]);
-                    }
-                }
-            }*/
             manager.PollEvents();
         }
 
@@ -241,19 +224,23 @@ namespace NetScene
                     if (!data.ContainsKey(obj.parentIndex))
                     {
                         data.Add(obj.parentIndex, new GameObject());
+                        netdata.Add(data[obj.parentIndex].GetInstanceID(), obj.parentIndex);
                     }
-                    object ob = (data[obj.parentIndex] as GameObject).GetComponent(t);
+                    UnityEngine.Object ob = (data[obj.parentIndex] as GameObject).GetComponent(t);
                     if (ob == null)
                     {
                         ob = (data[obj.parentIndex] as GameObject).AddComponent(t);
                     }
                     data.Add(obj.index, ob as UnityEngine.Object);
+                    netdata.Add(ob.GetInstanceID(), obj.index);
                 }
                 else
                 {
                     object ob = t.GetConstructor(new Type[0]).Invoke(new object[0]);
                     data.Add(obj.index, ob as UnityEngine.Object);
+                    netdata.Add((ob as UnityEngine.Object).GetInstanceID(), obj.index);
                 }
+                Debug.Assert(data[obj.index] == null, obj.index);
                 EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
             }
         }
@@ -296,6 +283,7 @@ namespace NetScene
             Debug.Log($"{peer.EndPoint.ToString()} connected.");
             if (!isServer)
                 return;
+            peer.Tag = new PeerData();
             foreach (var item in data)
             {
                 var packet = new SpawnObjectPacket()
