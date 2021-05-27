@@ -165,7 +165,7 @@ namespace NetScene
         private void ProcessChanges(int id)
         {
             var obj = EditorUtility.InstanceIDToObject(netdata2[id]);
-            if (obj == null || obj.hideFlags.HasFlag(HideFlags.DontSave))
+            if (obj == null || obj.hideFlags.HasFlag(HideFlags.DontSaveInEditor))
             {
                 manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
                 {
@@ -296,7 +296,7 @@ namespace NetScene
             List<int> des = new List<int>();
             foreach (var d in data)
             {
-                if (d.Value == null || d.Value.hideFlags.HasFlag(HideFlags.DontSave))
+                if (d.Value == null || d.Value.hideFlags.HasFlag(HideFlags.DontSaveInEditor))
                 {
                     netdata.Remove(netdata2[d.Key]);
                     netdata2.Remove(d.Key);
