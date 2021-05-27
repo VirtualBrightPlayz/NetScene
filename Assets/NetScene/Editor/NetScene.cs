@@ -42,12 +42,14 @@ namespace NetScene
         public void Host(int port)
         {
             isServer = true;
-            id = int.MinValue;
             data.Clear();
             netdata.Clear();
             netdata2.Clear();
             selections.Clear();
             peers.Clear();
+            id = int.MinValue;
+            localId = -1;
+            peers.Add(-1, new PeerData(localId, username, color));
             for (int j = 0; j < EditorSceneManager.sceneCount; j++)
             {
                 var arr = EditorSceneManager.GetSceneAt(j).GetRootGameObjects();
@@ -68,6 +70,7 @@ namespace NetScene
             selections.Clear();
             peers.Clear();
             id = int.MinValue;
+            localId = -1;
             EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             manager.Start();
