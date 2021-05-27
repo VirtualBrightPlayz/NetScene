@@ -176,8 +176,6 @@ namespace NetScene
                 if (!data.ContainsKey(id))
                 {
                     data.Add(id, obj);
-                    netdata.Add(obj.GetInstanceID(), id);
-                    netdata2.Add(id, obj.GetInstanceID());
                 }
             }
         }
