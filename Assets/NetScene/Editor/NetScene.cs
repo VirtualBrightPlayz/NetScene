@@ -169,6 +169,8 @@ namespace NetScene
                 {
                     netdata.Remove(netdata2[id]);
                     netdata2.Remove(id);
+                    if (isServer)
+                        Undo.DestroyObjectImmediate(data[id]);
                     data.Remove(id);
                 }
             }
