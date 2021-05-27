@@ -39,6 +39,7 @@ namespace NetScene
             password = string.Empty;
             data = new Dictionary<int, UnityEngine.Object>();
             netdata = new Dictionary<int, int>();
+            netdata2 = new Dictionary<int, int>();
             manager = new NetManager(this);
             processor = new NetPacketProcessor();
             processor.SubscribeNetSerializable<SpawnObjectPacket, NetPeer>(SpawnObject, () => new SpawnObjectPacket());
@@ -52,6 +53,7 @@ namespace NetScene
         {
             data = null;
             netdata = null;
+            netdata2 = null;
             manager = null;
             processor = null;
             EditorApplication.update -= Update;
@@ -264,6 +266,11 @@ namespace NetScene
         private void UpdateIndex(UpdateIndexPacket obj, NetPeer peer)
         {
             id = obj.index;
+            if (isServer)
+                manager.SendToAll(processor.WriteNetSerializable(new UpdateIndexPacket()
+                {
+                    index = id,
+                }), DeliveryMethod.ReliableOrdered);
         }
 
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
