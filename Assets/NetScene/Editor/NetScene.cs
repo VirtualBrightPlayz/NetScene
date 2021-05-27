@@ -81,12 +81,19 @@ namespace NetScene
 
         private void ProcessRootObject(int id)
         {
+            ProcessChanges(id);
             var obj = EditorUtility.InstanceIDToObject(id) as GameObject;
             if (obj == null)
                 return;
+            Component[] cmps = obj.GetComponents<Component>();
+            for (int j = 0; j < cmps.Length; j++)
+            {
+                ProcessChanges(cmps[j].GetInstanceID());
+            }
             for (int i = 0; i < obj.transform.childCount; i++)
             {
-                obj.transform.GetChild(i);
+                Transform xform = obj.transform.GetChild(i);
+                ProcessRootObject(xform.gameObject.GetInstanceID());
             }
         }
 
@@ -99,6 +106,21 @@ namespace NetScene
             else if (obj is Component cmp)
             {
                 return cmp.GetComponents<Component>().ToList().IndexOf(cmp);
+            }
+            return -1;
+        }
+
+        private int GetParentIndex(UnityEngine.Object obj)
+        {
+            if (obj is GameObject go)
+            {
+                if (go.transform.parent == null)
+                    return -1;
+                return go.transform.parent.gameObject.GetInstanceID();
+            }
+            else if (obj is Component cmp)
+            {
+                return cmp.gameObject.GetInstanceID();
             }
             return -1;
         }
@@ -121,6 +143,7 @@ namespace NetScene
                 {
                     index = id,
                     childIndex = GetChildIndex(obj),
+                    parentIndex = GetParentIndex(obj),
                     assetId = obj.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(obj, false)
                 };
@@ -216,7 +239,11 @@ namespace NetScene
                 Debug.Assert(t != null, obj.assetId);
                 if (t.IsSubclassOf(typeof(Component)))
                 {
-                    object ob = (data[obj.parentIndex] as GameObject).AddComponent(t);
+                    object ob = (data[obj.parentIndex] as GameObject).GetComponent(t);
+                    if (ob == null)
+                    {
+                        ob = (data[obj.parentIndex] as GameObject).AddComponent(t);
+                    }
                     data.Add(obj.index, ob as UnityEngine.Object);
                 }
                 else
@@ -272,6 +299,7 @@ namespace NetScene
                 {
                     index = item.Key,
                     childIndex = GetChildIndex(item.Value),
+                    parentIndex = GetParentIndex(item.Value),
                     assetId = item.Value.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(item.Value, false)
                 };
