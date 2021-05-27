@@ -131,6 +131,8 @@ namespace NetScene
 
         private int GetNetIndex(int id)
         {
+            if (!netdata.ContainsKey(id))
+                netdata.Add(id, EditorUtility.InstanceIDToObject(id).GetInstanceID());
             return netdata[id];
         }
 
