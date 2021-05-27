@@ -165,6 +165,8 @@ namespace NetScene
                 }), DeliveryMethod.ReliableOrdered);
                 if (data.ContainsKey(id))
                 {
+                    netdata.Remove(data[id].GetInstanceID());
+                    netdata2.Remove(id);
                     data.Remove(id);
                 }
             }
