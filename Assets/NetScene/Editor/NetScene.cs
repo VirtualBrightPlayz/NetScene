@@ -75,7 +75,7 @@ namespace NetScene
                     case ObjectChangeKind.DestroyGameObjectHierarchy:
                     {
                         stream.GetDestroyGameObjectHierarchyEvent(i, out var d);
-                        ProcessRootObject(GetNetworkId(d.instanceId));
+                        ProcessRootObject(GetNetworkId(d.instanceId), true);
                     }
                     break;
                     case ObjectChangeKind.ChangeGameObjectOrComponentProperties:
@@ -100,9 +100,9 @@ namespace NetScene
             }
         }
 
-        private void ProcessRootObject(int id)
+        private void ProcessRootObject(int id, bool destroy = false)
         {
-            ProcessChanges(id);
+            ProcessChanges(id, destroy);
             if (!netdata2.ContainsKey(id))
                 return;
             var obj = EditorUtility.InstanceIDToObject(netdata2[id]) as GameObject;
@@ -111,12 +111,12 @@ namespace NetScene
             Component[] cmps = obj.GetComponents<Component>();
             for (int j = 0; j < cmps.Length; j++)
             {
-                ProcessChanges(GetNetworkId(cmps[j].GetInstanceID()));
+                ProcessChanges(GetNetworkId(cmps[j].GetInstanceID()), destroy);
             }
             for (int i = 0; i < obj.transform.childCount; i++)
             {
                 Transform xform = obj.transform.GetChild(i);
-                ProcessRootObject(GetNetworkId(xform.gameObject.GetInstanceID()));
+                ProcessRootObject(GetNetworkId(xform.gameObject.GetInstanceID()), destroy);
             }
         }
 
@@ -162,10 +162,11 @@ namespace NetScene
             return netdata[unityid];
         }
 
-        private void ProcessChanges(int id)
+        private void ProcessChanges(int id, bool destroy = false)
         {
             var obj = EditorUtility.InstanceIDToObject(netdata2[id]);
-            if (obj == null || obj.hideFlags.HasFlag(HideFlags.DontSaveInEditor))
+            Debug.Log(obj.hideFlags.ToString());
+            if (obj == null || destroy)
             {
                 manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
                 {
@@ -175,7 +176,7 @@ namespace NetScene
                 {
                     netdata.Remove(netdata2[id]);
                     netdata2.Remove(id);
-                    if (isServer)
+                    if (isServer && obj != null)
                         Undo.DestroyObjectImmediate(data[id]);
                     data.Remove(id);
                 }
