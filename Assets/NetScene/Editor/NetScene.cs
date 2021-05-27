@@ -111,16 +111,16 @@ namespace NetScene
 
         private void Select()
         {
-            if (Selection.activeTransform == null)
-            {
+            // if (Selection.activeTransform == null)
+            // {
                 manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
                 {
                     selected = false,
                     index = GetNetworkId(prevSelect)
                 }), DeliveryMethod.ReliableOrdered);
                 selections.Remove(GetNetworkId(prevSelect));
-            }
-            else
+            // }
+            // else
             {
                 manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
                 {
