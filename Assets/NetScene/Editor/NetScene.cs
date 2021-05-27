@@ -279,7 +279,10 @@ namespace NetScene
             {
                 netdata.Remove(data[obj.index].GetInstanceID());
                 netdata2.Remove(obj.index);
-                UnityEngine.Object.DestroyImmediate(data[obj.index]);
+                if (isServer)
+                    Undo.DestroyObjectImmediate(data[obj.index]);
+                else
+                    UnityEngine.Object.DestroyImmediate(data[obj.index]);
                 data.Remove(obj.index);
             }
         }
