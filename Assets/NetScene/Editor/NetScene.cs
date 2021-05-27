@@ -111,6 +111,8 @@ namespace NetScene
 
         private void Select()
         {
+            if (manager == null)
+                return;
             manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
             {
                 selected = false,
