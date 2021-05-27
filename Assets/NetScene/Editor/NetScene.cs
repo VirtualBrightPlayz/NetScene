@@ -20,6 +20,7 @@ namespace NetScene
         public NetManager manager;
         public NetPacketProcessor processor;
         public string password;
+        public string username;
         public Color color;
         public bool isServer;
         public Dictionary<int, UnityEngine.Object> data;
@@ -27,9 +28,11 @@ namespace NetScene
         public Dictionary<int, int> netdata;
         // second is local unity id; first is net id
         public Dictionary<int, int> netdata2;
-        public Dictionary<int, Color> selections;
+        public Dictionary<int, int> selections;
+        public Dictionary<int, PeerData> peers;
         int id = int.MinValue;
         public int prevSelect;
+        public int localId;
 
         public NetScene()
         {
@@ -44,6 +47,7 @@ namespace NetScene
             netdata.Clear();
             netdata2.Clear();
             selections.Clear();
+            peers.Clear();
             for (int j = 0; j < EditorSceneManager.sceneCount; j++)
             {
                 var arr = EditorSceneManager.GetSceneAt(j).GetRootGameObjects();
@@ -62,6 +66,7 @@ namespace NetScene
             netdata.Clear();
             netdata2.Clear();
             selections.Clear();
+            peers.Clear();
             id = int.MinValue;
             EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -82,13 +87,16 @@ namespace NetScene
             data = new Dictionary<int, UnityEngine.Object>();
             netdata = new Dictionary<int, int>();
             netdata2 = new Dictionary<int, int>();
-            selections = new Dictionary<int, Color>();
+            selections = new Dictionary<int, int>();
+            peers = new Dictionary<int, PeerData>();
             manager = new NetManager(this);
             processor = new NetPacketProcessor();
             processor.SubscribeNetSerializable<SpawnObjectPacket, NetPeer>(SpawnObject, () => new SpawnObjectPacket());
             processor.SubscribeNetSerializable<DestroyObjectPacket, NetPeer>(DestroyObject, () => new DestroyObjectPacket());
             processor.SubscribeNetSerializable<UpdateIndexPacket, NetPeer>(UpdateIndex, () => new UpdateIndexPacket());
             processor.SubscribeNetSerializable<SelectPacket, NetPeer>(OnSelectPacket, () => new SelectPacket());
+            processor.SubscribeNetSerializable<UserInfoPacket, NetPeer>(UserInfo, () => new UserInfoPacket());
+            processor.SubscribeNetSerializable<UserSetInfoPacket, NetPeer>(OnSetLocalId, () => new UserSetInfoPacket());
             EditorApplication.update += Update;
             Selection.selectionChanged += Select;
             SceneView.duringSceneGui += Gui;
@@ -101,6 +109,7 @@ namespace NetScene
             netdata = null;
             netdata2 = null;
             selections = null;
+            peers = null;
             manager = null;
             processor = null;
             EditorApplication.update -= Update;
@@ -119,16 +128,16 @@ namespace NetScene
                 index = GetNetworkId(prevSelect)
             }), DeliveryMethod.ReliableOrdered);
             selections.Remove(GetNetworkId(prevSelect));
+            if (Selection.activeTransform == null)
+                return;
             {
                 manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
                 {
                     selected = true,
                     index = GetNetworkId(Selection.activeTransform.gameObject.GetInstanceID()),
-                    r = color.r,
-                    g = color.g,
-                    b = color.b
+                    id = localId,
                 }), DeliveryMethod.ReliableOrdered);
-                selections.Add(GetNetworkId(Selection.activeTransform.gameObject.GetInstanceID()), color);
+                selections.Add(GetNetworkId(Selection.activeTransform.gameObject.GetInstanceID()), localId);
                 prevSelect = Selection.activeTransform.gameObject.GetInstanceID();
             }
         }
@@ -140,9 +149,9 @@ namespace NetScene
                 var ob = EditorUtility.InstanceIDToObject(netdata2[item.Key]);
                 if (ob is GameObject go)
                 {
-                    Handles.color = item.Value;
+                    Handles.color = peers[item.Value].color;
                     Handles.DrawWireDisc(go.transform.position, (view.camera.transform.position - go.transform.position).normalized, 1f);
-                    GUI.color = item.Value;
+                    GUI.color = peers[item.Value].color;
                     Handles.Label(go.transform.position, "Selected");
                 }
             }
@@ -320,13 +329,39 @@ namespace NetScene
             manager.PollEvents();
         }
 
+        private void UserInfo(UserInfoPacket obj, NetPeer peer)
+        {
+            if (isServer)
+            {
+                peers.Add(peer.Id, new PeerData(peer.Id, obj.name, obj.color));
+                peer.Send(processor.WriteNetSerializable(new UserSetInfoPacket()
+                {
+                    newid = peer.Id
+                }), DeliveryMethod.ReliableOrdered);
+                manager.SendToAll(processor.WriteNetSerializable(new UserInfoPacket()
+                {
+                    id = peer.Id,
+                    color = obj.color,
+                    name = obj.name
+                }), DeliveryMethod.ReliableOrdered);
+                return;
+            }
+            peers.Add(obj.id, new PeerData(obj.id, obj.name, obj.color));
+        }
+
+        private void OnSetLocalId(UserSetInfoPacket obj, NetPeer peer)
+        {
+            if (!isServer)
+                localId = obj.newid;
+        }
+
         private void OnSelectPacket(SelectPacket obj, NetPeer peer)
         {
             if (selections.ContainsKey(obj.index))
             {
                 if (obj.selected)
                 {
-                    selections[obj.index] = new Color(obj.r, obj.g, obj.b, 1f);
+                    selections[obj.index] = peers[obj.id].id;
                 }
                 else
                 {
@@ -337,7 +372,7 @@ namespace NetScene
             {
                 if (obj.selected)
                 {
-                    selections.Add(obj.index, new Color(obj.r, obj.g, obj.b, 1f));
+                    selections.Add(obj.index, peers[obj.id].id);
                 }
             }
             if (isServer)
@@ -453,12 +488,28 @@ namespace NetScene
         {
             Debug.Log($"{peer.EndPoint.ToString()} connected.");
             if (!isServer)
+            {
+                manager.SendToAll(processor.WriteNetSerializable(new UserInfoPacket()
+                {
+                    color = color,
+                    name = username
+                }), DeliveryMethod.ReliableOrdered);
                 return;
-            peer.Tag = new PeerData();
+            }
             peer.Send(processor.WriteNetSerializable(new UpdateIndexPacket()
             {
                 index = id,
             }), DeliveryMethod.ReliableOrdered);
+            foreach (var item in peers)
+            {
+                var packet = new UserInfoPacket()
+                {
+                    id = item.Value.id,
+                    color = item.Value.color,
+                    name = item.Value.name
+                };
+                peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
+            }
             foreach (var item in data)
             {
                 var packet = new SpawnObjectPacket()
@@ -477,9 +528,7 @@ namespace NetScene
                 {
                     selected = true,
                     index = item.Key,
-                    r = item.Value.r,
-                    g = item.Value.g,
-                    b = item.Value.b
+                    id = item.Value
                 };
                 peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
             }

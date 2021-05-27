@@ -62,30 +62,62 @@ namespace NetScene
         }
     }
 
+    public struct UserSetInfoPacket : INetSerializable
+    {
+        public int newid;
+
+        void INetSerializable.Deserialize(NetDataReader reader)
+        {
+            newid = reader.GetInt();
+        }
+
+        void INetSerializable.Serialize(NetDataWriter writer)
+        {
+            writer.Put(newid);
+        }
+    }
+
+    public struct UserInfoPacket : INetSerializable
+    {
+        public int id;
+        public string name;
+        public Color color;
+
+        void INetSerializable.Deserialize(NetDataReader reader)
+        {
+            id = reader.GetInt();
+            name = reader.GetString();
+            color = new Color(reader.GetFloat(), reader.GetFloat(), reader.GetFloat(), 1f);
+        }
+
+        void INetSerializable.Serialize(NetDataWriter writer)
+        {
+            writer.Put(id);
+            writer.Put(name);
+            writer.Put(color.r);
+            writer.Put(color.g);
+            writer.Put(color.b);
+        }
+    }
+
     public struct SelectPacket : INetSerializable
     {
         public bool selected;
         public int index;
-        public float r;
-        public float g;
-        public float b;
+        public int id;
 
         void INetSerializable.Deserialize(NetDataReader reader)
         {
             selected = reader.GetBool();
             index = reader.GetInt();
-            r = reader.GetFloat();
-            g = reader.GetFloat();
-            b = reader.GetFloat();
+            id = reader.GetInt();
         }
 
         void INetSerializable.Serialize(NetDataWriter writer)
         {
             writer.Put(selected);
             writer.Put(index);
-            writer.Put(r);
-            writer.Put(g);
-            writer.Put(b);
+            writer.Put(id);
         }
     }
 }
