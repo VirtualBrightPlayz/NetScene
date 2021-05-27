@@ -29,6 +29,7 @@ namespace NetScene
         public Dictionary<int, int> netdata2;
         public Dictionary<int, Color> selections;
         int id = int.MinValue;
+        public int prevSelect;
 
         public NetScene()
         {
@@ -114,8 +115,10 @@ namespace NetScene
             {
                 manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
                 {
-                    selected = false
+                    selected = false,
+                    index = GetNetworkId(prevSelect)
                 }), DeliveryMethod.ReliableOrdered);
+                selections.Remove(GetNetworkId(prevSelect));
             }
             else
             {
@@ -127,6 +130,8 @@ namespace NetScene
                     g = color.g,
                     b = color.b
                 }), DeliveryMethod.ReliableOrdered);
+                selections.Add(GetNetworkId(Selection.activeTransform.gameObject.GetInstanceID()), color);
+                prevSelect = Selection.activeTransform.gameObject.GetInstanceID();
             }
         }
 
