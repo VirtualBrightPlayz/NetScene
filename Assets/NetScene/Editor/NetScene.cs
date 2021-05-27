@@ -273,6 +273,8 @@ namespace NetScene
         {
             if (data.ContainsKey(obj.index) && data[obj.index] != null)
             {
+                netdata.Remove(data[obj.index].GetInstanceID());
+                netdata2.Remove(obj.index);
                 UnityEngine.Object.DestroyImmediate(data[obj.index]);
                 data.Remove(obj.index);
             }
