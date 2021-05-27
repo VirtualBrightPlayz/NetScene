@@ -236,9 +236,12 @@ namespace NetScene
             else
             {
                 Type t = Type.GetType(obj.assetId);
-                Debug.Assert(t != null, obj.assetId);
                 if (t.IsSubclassOf(typeof(Component)))
                 {
+                    if (!data.ContainsKey(obj.parentIndex))
+                    {
+                        data.Add(obj.parentIndex, new GameObject());
+                    }
                     object ob = (data[obj.parentIndex] as GameObject).GetComponent(t);
                     if (ob == null)
                     {
