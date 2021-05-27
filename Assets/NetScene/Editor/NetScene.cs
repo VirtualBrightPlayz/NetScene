@@ -286,20 +286,20 @@ namespace NetScene
                 else
                     UnityEngine.Object.DestroyImmediate(data[obj.index]);
                 data.Remove(obj.index);
-                List<int> des = new List<int>();
-                foreach (var d in data)
+            }
+            List<int> des = new List<int>();
+            foreach (var d in data)
+            {
+                if (d.Value == null)
                 {
-                    if (d.Value == null)
-                    {
-                        netdata.Remove(netdata2[d.Key]);
-                        netdata2.Remove(d.Key);
-                        des.Add(d.Key);
-                    }
+                    netdata.Remove(netdata2[d.Key]);
+                    netdata2.Remove(d.Key);
+                    des.Add(d.Key);
                 }
-                foreach (var d in des)
-                {
-                    data.Remove(d);
-                }
+            }
+            foreach (var d in des)
+            {
+                data.Remove(d);
             }
         }
 
