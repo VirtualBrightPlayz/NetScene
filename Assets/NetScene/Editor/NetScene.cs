@@ -24,6 +24,8 @@ namespace NetScene
         public Dictionary<int, UnityEngine.Object> data;
         // first is local unity id; second is net id
         public Dictionary<int, int> netdata;
+        // second is local unity id; first is net id
+        public Dictionary<int, int> netdata2;
         int id = int.MinValue;
 
         public NetScene()
@@ -87,18 +89,18 @@ namespace NetScene
         private void ProcessRootObject(int id)
         {
             ProcessChanges(id);
-            var obj = EditorUtility.InstanceIDToObject(id) as GameObject;
+            var obj = EditorUtility.InstanceIDToObject(netdata2[id]) as GameObject;
             if (obj == null)
                 return;
             Component[] cmps = obj.GetComponents<Component>();
             for (int j = 0; j < cmps.Length; j++)
             {
-                ProcessChanges(cmps[j].GetInstanceID());
+                ProcessChanges(GetNetworkId(cmps[j].GetInstanceID()));
             }
             for (int i = 0; i < obj.transform.childCount; i++)
             {
                 Transform xform = obj.transform.GetChild(i);
-                ProcessRootObject(xform.gameObject.GetInstanceID());
+                ProcessRootObject(GetNetworkId(xform.gameObject.GetInstanceID()));
             }
         }
 
@@ -121,56 +123,57 @@ namespace NetScene
             {
                 if (go.transform.parent == null)
                     return -1;
-                return go.transform.parent.gameObject.GetInstanceID();
+                return GetNetworkId(go.transform.parent.gameObject.GetInstanceID());
             }
             else if (obj is Component cmp)
             {
-                return cmp.gameObject.GetInstanceID();
+                return GetNetworkId(cmp.gameObject.GetInstanceID());
             }
             return -1;
         }
 
-        private int GetNetIndex(int id)
+        private int GetNetworkId(int unityid)
         {
-            if (!netdata.ContainsKey(id))
+            if (!netdata.ContainsKey(unityid))
             {
-                netdata.Add(id, this.id++);
+                netdata.Add(unityid, id++);
+                netdata2.Add(netdata[unityid], unityid);
                 manager.SendToAll(processor.WriteNetSerializable(new UpdateIndexPacket()
                 {
-                    index = netdata[id],
+                    index = netdata[unityid]
                 }), DeliveryMethod.ReliableOrdered);
             }
-            return netdata[id];
+            return netdata[unityid];
         }
 
         private void ProcessChanges(int id)
         {
-            var obj = EditorUtility.InstanceIDToObject(id);
+            var obj = EditorUtility.InstanceIDToObject(netdata2[id]);
             if (obj == null || obj.hideFlags.HasFlag(HideFlags.DontSave))
             {
                 manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
                 {
-                    index = GetNetIndex(id)
+                    index = id
                 }), DeliveryMethod.ReliableOrdered);
-                if (!data.ContainsKey(GetNetIndex(id)))
+                if (!data.ContainsKey(id))
                 {
-                    data.Remove(GetNetIndex(id));
+                    data.Remove(id);
                 }
             }
             else
             {
                 var packet = new SpawnObjectPacket()
                 {
-                    index = GetNetIndex(id),
-                    childIndex = GetNetIndex(GetChildIndex(obj)),
-                    parentIndex = GetNetIndex(GetParentIndex(obj)),
+                    index = id,
+                    childIndex = GetChildIndex(obj),
+                    parentIndex = GetParentIndex(obj),
                     assetId = obj.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(obj, false)
                 };
                 manager.SendToAll(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
-                if (!data.ContainsKey(GetNetIndex(id)))
+                if (!data.ContainsKey(id))
                 {
-                    data.Add(GetNetIndex(id), obj);
+                    data.Add(id, obj);
                 }
             }
         }
@@ -194,7 +197,7 @@ namespace NetScene
                 var arr = EditorSceneManager.GetSceneAt(j).GetRootGameObjects();
                 for (int i = 0; i < arr.Length; i++)
                 {
-                    ProcessRootObject(arr[i].GetInstanceID());
+                    ProcessRootObject(GetNetworkId(arr[i].GetInstanceID()));
                 }
             }
             manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
@@ -219,53 +222,48 @@ namespace NetScene
 
         private void SpawnObject(SpawnObjectPacket obj, NetPeer peer)
         {
-            if (data.ContainsKey(GetNetIndex(obj.index)) && data[GetNetIndex(obj.index)] != null)
+            if (data.ContainsKey(obj.index) && data[obj.index] != null)
             {
-                EditorJsonUtility.FromJsonOverwrite(obj.json, data[GetNetIndex(obj.index)]);
+                EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
             }
             else
             {
                 Type t = Type.GetType(obj.assetId);
                 if (t.IsSubclassOf(typeof(Component)))
                 {
-                    if (!data.ContainsKey(GetNetIndex(obj.parentIndex)))
+                    if (!data.ContainsKey(obj.parentIndex))
                     {
-                        data.Add(GetNetIndex(obj.parentIndex), new GameObject());
+                        data.Add(obj.parentIndex, new GameObject());
                     }
-                    UnityEngine.Object ob = (data[GetNetIndex(obj.parentIndex)] as GameObject).GetComponent(t);
+                    UnityEngine.Object ob = (data[obj.parentIndex] as GameObject).GetComponent(t);
                     if (ob == null)
                     {
-                        ob = (data[GetNetIndex(obj.parentIndex)] as GameObject).AddComponent(t);
+                        ob = (data[obj.parentIndex] as GameObject).AddComponent(t);
                     }
-                    data.Add(GetNetIndex(obj.index), ob as UnityEngine.Object);
+                    data.Add(obj.index, ob as UnityEngine.Object);
                 }
                 else
                 {
                     object ob = t.GetConstructor(new Type[0]).Invoke(new object[0]);
-                    data.Add(GetNetIndex(obj.index), ob as UnityEngine.Object);
+                    data.Add(obj.index, ob as UnityEngine.Object);
                 }
-                Debug.Assert(data[GetNetIndex(obj.index)] == null, GetNetIndex(obj.index));
-                EditorJsonUtility.FromJsonOverwrite(obj.json, data[GetNetIndex(obj.index)]);
+                Debug.Assert(data[obj.index] == null, obj.index);
+                EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
             }
         }
 
         private void DestroyObject(DestroyObjectPacket obj, NetPeer peer)
         {
-            if (data.ContainsKey(GetNetIndex(obj.index)) && data[GetNetIndex(obj.index)] != null)
+            if (data.ContainsKey(obj.index) && data[obj.index] != null)
             {
-                UnityEngine.Object.DestroyImmediate(data[GetNetIndex(obj.index)]);
-                data.Remove(GetNetIndex(obj.index));
+                UnityEngine.Object.DestroyImmediate(data[obj.index]);
+                data.Remove(obj.index);
             }
         }
 
         private void UpdateIndex(UpdateIndexPacket obj, NetPeer peer)
         {
             id = obj.index;
-            if (isServer)
-                manager.SendToAll(processor.WriteNetSerializable(new UpdateIndexPacket()
-                {
-                    index = id,
-                }), DeliveryMethod.ReliableOrdered);
         }
 
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
@@ -306,9 +304,9 @@ namespace NetScene
             {
                 var packet = new SpawnObjectPacket()
                 {
-                    index = GetNetIndex(item.Key),
-                    childIndex = GetNetIndex(GetChildIndex(item.Value)),
-                    parentIndex = GetNetIndex(GetParentIndex(item.Value)),
+                    index = item.Key,
+                    childIndex = GetChildIndex(item.Value),
+                    parentIndex = GetParentIndex(item.Value),
                     assetId = item.Value.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(item.Value, false)
                 };
