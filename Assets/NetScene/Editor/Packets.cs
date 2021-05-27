@@ -61,4 +61,31 @@ namespace NetScene
             writer.Put(index);
         }
     }
+
+    public struct SelectPacket : INetSerializable
+    {
+        public bool selected;
+        public int index;
+        public float r;
+        public float g;
+        public float b;
+
+        void INetSerializable.Deserialize(NetDataReader reader)
+        {
+            selected = reader.GetBool();
+            index = reader.GetInt();
+            r = reader.GetFloat();
+            g = reader.GetFloat();
+            b = reader.GetFloat();
+        }
+
+        void INetSerializable.Serialize(NetDataWriter writer)
+        {
+            writer.Put(selected);
+            writer.Put(index);
+            writer.Put(r);
+            writer.Put(g);
+            writer.Put(b);
+        }
+    }
 }

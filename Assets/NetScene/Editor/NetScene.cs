@@ -20,17 +20,58 @@ namespace NetScene
         public NetManager manager;
         public NetPacketProcessor processor;
         public string password;
+        public Color color;
         public bool isServer;
         public Dictionary<int, UnityEngine.Object> data;
         // first is local unity id; second is net id
         public Dictionary<int, int> netdata;
         // second is local unity id; first is net id
         public Dictionary<int, int> netdata2;
+        public Dictionary<int, Color> selections;
         int id = int.MinValue;
 
         public NetScene()
         {
             Init();
+        }
+
+        public void Host(int port)
+        {
+            isServer = true;
+            id = int.MinValue;
+            data.Clear();
+            netdata.Clear();
+            netdata2.Clear();
+            selections.Clear();
+            for (int j = 0; j < EditorSceneManager.sceneCount; j++)
+            {
+                var arr = EditorSceneManager.GetSceneAt(j).GetRootGameObjects();
+                for (int i = 0; i < arr.Length; i++)
+                {
+                    ProcessRootObject(GetNetworkId(arr[i].GetInstanceID()));
+                }
+            }
+            manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
+        }
+
+        public void Connect(string ip, int port)
+        {
+            isServer = false;
+            data.Clear();
+            netdata.Clear();
+            netdata2.Clear();
+            selections.Clear();
+            id = int.MinValue;
+            EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            manager.Start();
+            manager.Connect(ip, port, password);
+        }
+
+        public void Stop()
+        {
+            if (manager != null)
+                manager.Stop(true);
         }
 
         public void Init()
@@ -40,12 +81,16 @@ namespace NetScene
             data = new Dictionary<int, UnityEngine.Object>();
             netdata = new Dictionary<int, int>();
             netdata2 = new Dictionary<int, int>();
+            selections = new Dictionary<int, Color>();
             manager = new NetManager(this);
             processor = new NetPacketProcessor();
             processor.SubscribeNetSerializable<SpawnObjectPacket, NetPeer>(SpawnObject, () => new SpawnObjectPacket());
             processor.SubscribeNetSerializable<DestroyObjectPacket, NetPeer>(DestroyObject, () => new DestroyObjectPacket());
             processor.SubscribeNetSerializable<UpdateIndexPacket, NetPeer>(UpdateIndex, () => new UpdateIndexPacket());
+            processor.SubscribeNetSerializable<SelectPacket, NetPeer>(OnSelectPacket, () => new SelectPacket());
             EditorApplication.update += Update;
+            Selection.selectionChanged += Select;
+            SceneView.duringSceneGui += Gui;
             ObjectChangeEvents.changesPublished += ObjectChanged;
         }
 
@@ -54,10 +99,51 @@ namespace NetScene
             data = null;
             netdata = null;
             netdata2 = null;
+            selections = null;
             manager = null;
             processor = null;
             EditorApplication.update -= Update;
+            Selection.selectionChanged -= Select;
+            SceneView.duringSceneGui -= Gui;
             ObjectChangeEvents.changesPublished -= ObjectChanged;
+        }
+
+        private void Select()
+        {
+            if (Selection.activeTransform == null)
+            {
+                manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
+                {
+                    selected = false
+                }), DeliveryMethod.ReliableOrdered);
+            }
+            else
+            {
+                manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
+                {
+                    selected = true,
+                    index = GetNetworkId(Selection.activeTransform.gameObject.GetInstanceID()),
+                    r = color.r,
+                    g = color.g,
+                    b = color.b,
+                }), DeliveryMethod.ReliableOrdered);
+            }
+        }
+
+        private void Gui(SceneView view)
+        {
+            foreach (var item in selections)
+            {
+                var ob = EditorUtility.InstanceIDToObject(netdata2[item.Key]);
+                if (ob is GameObject go)
+                {
+                    Handles.color = item.Value;
+                    Handles.Label(go.transform.position, "Selected");
+                }
+            }
+            // Handles.DrawSelectionFrame(0, );
+            // Handles.SelectionFrame();
+            // Handles.Label();
         }
 
         private void ObjectChanged(ref ObjectChangeEventStream stream)
@@ -232,37 +318,30 @@ namespace NetScene
             manager.PollEvents();
         }
 
-        public void Host(int port)
+        private void OnSelectPacket(SelectPacket obj, NetPeer peer)
         {
-            isServer = true;
-            id = int.MinValue;
-            data.Clear();
-            for (int j = 0; j < EditorSceneManager.sceneCount; j++)
+            if (selections.ContainsKey(obj.index))
             {
-                var arr = EditorSceneManager.GetSceneAt(j).GetRootGameObjects();
-                for (int i = 0; i < arr.Length; i++)
+                if (obj.selected)
                 {
-                    ProcessRootObject(GetNetworkId(arr[i].GetInstanceID()));
+                    selections[obj.index] = new Color(obj.r, obj.b, obj.g, 1f);
+                }
+                else
+                {
+                    selections.Remove(obj.index);
                 }
             }
-            manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
-        }
-
-        public void Connect(string ip, int port)
-        {
-            isServer = false;
-            data.Clear();
-            id = int.MinValue;
-            EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            manager.Start();
-            manager.Connect(ip, port, password);
-        }
-
-        public void Stop()
-        {
-            if (manager != null)
-                manager.Stop(true);
+            else
+            {
+                if (obj.selected)
+                {
+                    selections.Add(obj.index, new Color(obj.r, obj.b, obj.g, 1f));
+                }
+            }
+            if (isServer)
+            {
+                manager.SendToAll(processor.WriteNetSerializable(obj), DeliveryMethod.ReliableOrdered, peer);
+            }
         }
 
         private void SpawnObject(SpawnObjectPacket obj, NetPeer peer)
