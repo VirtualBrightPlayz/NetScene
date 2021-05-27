@@ -125,7 +125,7 @@ namespace NetScene
                     index = GetNetworkId(Selection.activeTransform.gameObject.GetInstanceID()),
                     r = color.r,
                     g = color.g,
-                    b = color.b,
+                    b = color.b
                 }), DeliveryMethod.ReliableOrdered);
             }
         }
@@ -141,15 +141,8 @@ namespace NetScene
                     Handles.DrawWireDisc(go.transform.position, (view.camera.transform.position - go.transform.position).normalized, 1f);
                     GUI.color = item.Value;
                     Handles.Label(go.transform.position, "Selected");
-                    /*Gizmos.color = item.Value;
-                    Gizmos.DrawWireSphere(go.transform.position, 5f);*/
-                    // Handles.DrawSelectionFrame(0, go.transform.position, go.transform.rotation, 5f, EventType.Layout);
-                    // Handles.Label(go.transform.position, "Selected", GUIUtility);
                 }
             }
-            // Handles.DrawSelectionFrame(0, );
-            // Handles.SelectionFrame();
-            // Handles.Label();
         }
 
         private void ObjectChanged(ref ObjectChangeEventStream stream)
@@ -472,6 +465,18 @@ namespace NetScene
                     parentIndex = GetParentIndex(item.Value),
                     assetId = item.Value.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(item.Value, false)
+                };
+                peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
+            }
+            foreach (var item in selections)
+            {
+                var packet = new SelectPacket()
+                {
+                    selected = true,
+                    index = item.Key,
+                    r = item.Value.r,
+                    g = item.Value.g,
+                    b = item.Value.b
                 };
                 peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
             }
