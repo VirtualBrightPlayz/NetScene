@@ -152,9 +152,9 @@ namespace NetScene
                 {
                     index = GetNetIndex(id)
                 }), DeliveryMethod.ReliableOrdered);
-                if (!data.ContainsKey(id))
+                if (!data.ContainsKey(GetNetIndex(id)))
                 {
-                    data.Remove(id);
+                    data.Remove(GetNetIndex(id));
                 }
             }
             else
@@ -168,9 +168,9 @@ namespace NetScene
                     json = EditorJsonUtility.ToJson(obj, false)
                 };
                 manager.SendToAll(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
-                if (!data.ContainsKey(id))
+                if (!data.ContainsKey(GetNetIndex(id)))
                 {
-                    data.Add(id, obj);
+                    data.Add(GetNetIndex(id), obj);
                 }
             }
         }
@@ -219,42 +219,42 @@ namespace NetScene
 
         private void SpawnObject(SpawnObjectPacket obj, NetPeer peer)
         {
-            if (data.ContainsKey(obj.index) && data[obj.index] != null)
+            if (data.ContainsKey(GetNetIndex(obj.index)) && data[GetNetIndex(obj.index)] != null)
             {
-                EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
+                EditorJsonUtility.FromJsonOverwrite(obj.json, data[GetNetIndex(obj.index)]);
             }
             else
             {
                 Type t = Type.GetType(obj.assetId);
                 if (t.IsSubclassOf(typeof(Component)))
                 {
-                    if (!data.ContainsKey(obj.parentIndex))
+                    if (!data.ContainsKey(GetNetIndex(obj.parentIndex)))
                     {
-                        data.Add(obj.parentIndex, new GameObject());
+                        data.Add(GetNetIndex(obj.parentIndex), new GameObject());
                     }
-                    UnityEngine.Object ob = (data[obj.parentIndex] as GameObject).GetComponent(t);
+                    UnityEngine.Object ob = (data[GetNetIndex(obj.parentIndex)] as GameObject).GetComponent(t);
                     if (ob == null)
                     {
-                        ob = (data[obj.parentIndex] as GameObject).AddComponent(t);
+                        ob = (data[GetNetIndex(obj.parentIndex)] as GameObject).AddComponent(t);
                     }
-                    data.Add(obj.index, ob as UnityEngine.Object);
+                    data.Add(GetNetIndex(obj.index), ob as UnityEngine.Object);
                 }
                 else
                 {
                     object ob = t.GetConstructor(new Type[0]).Invoke(new object[0]);
-                    data.Add(obj.index, ob as UnityEngine.Object);
+                    data.Add(GetNetIndex(obj.index), ob as UnityEngine.Object);
                 }
-                Debug.Assert(data[obj.index] == null, obj.index);
-                EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
+                Debug.Assert(data[GetNetIndex(obj.index)] == null, GetNetIndex(obj.index));
+                EditorJsonUtility.FromJsonOverwrite(obj.json, data[GetNetIndex(obj.index)]);
             }
         }
 
         private void DestroyObject(DestroyObjectPacket obj, NetPeer peer)
         {
-            if (data.ContainsKey(obj.index) && data[obj.index] != null)
+            if (data.ContainsKey(GetNetIndex(obj.index)) && data[GetNetIndex(obj.index)] != null)
             {
-                UnityEngine.Object.DestroyImmediate(data[obj.index]);
-                data.Remove(obj.index);
+                UnityEngine.Object.DestroyImmediate(data[GetNetIndex(obj.index)]);
+                data.Remove(GetNetIndex(obj.index));
             }
         }
 
