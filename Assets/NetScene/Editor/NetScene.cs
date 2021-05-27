@@ -163,7 +163,7 @@ namespace NetScene
                 {
                     index = id
                 }), DeliveryMethod.ReliableOrdered);
-                if (!data.ContainsKey(id))
+                if (data.ContainsKey(id))
                 {
                     data.Remove(id);
                 }
