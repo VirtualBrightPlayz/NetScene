@@ -138,7 +138,9 @@ namespace NetScene
                 if (ob is GameObject go)
                 {
                     Handles.color = item.Value;
-                    Handles.DrawWireDisc(go.transform.position, (view.camera.transform.position - go.transform.position).normalized, 5f);
+                    Handles.DrawWireDisc(go.transform.position, (view.camera.transform.position - go.transform.position).normalized, 1f);
+                    GUI.color = item.Value;
+                    Handles.Label(go.transform.position, "Selected");
                     /*Gizmos.color = item.Value;
                     Gizmos.DrawWireSphere(go.transform.position, 5f);*/
                     // Handles.DrawSelectionFrame(0, go.transform.position, go.transform.rotation, 5f, EventType.Layout);
