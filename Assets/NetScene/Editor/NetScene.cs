@@ -355,7 +355,10 @@ namespace NetScene
         private void OnSetLocalId(UserSetInfoPacket obj, NetPeer peer)
         {
             if (!isServer)
+            {
                 localId = obj.newid;
+                peers.Add(localId, new PeerData(localId, username, color));
+            }
         }
 
         private void OnSelectPacket(SelectPacket obj, NetPeer peer)
