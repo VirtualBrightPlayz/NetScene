@@ -75,7 +75,8 @@ namespace NetScene
                     case ObjectChangeKind.DestroyGameObjectHierarchy:
                     {
                         stream.GetDestroyGameObjectHierarchyEvent(i, out var d);
-                        ProcessRootObject(GetNetworkId(d.instanceId), true);
+                        ProcessRootObject(GetNetworkId(d.instanceId));
+                        ResetChanges();
                     }
                     break;
                     case ObjectChangeKind.ChangeGameObjectOrComponentProperties:
@@ -88,21 +89,45 @@ namespace NetScene
                     {
                         stream.GetChangeGameObjectStructureEvent(i, out var d);
                         ProcessRootObject(GetNetworkId(d.instanceId));
+                        ResetChanges();
                     }
                     break;
                     case ObjectChangeKind.ChangeGameObjectStructureHierarchy:
                     {
                         stream.GetChangeGameObjectStructureHierarchyEvent(i, out var d);
                         ProcessRootObject(GetNetworkId(d.instanceId));
+                        ResetChanges();
                     }
                     break;
                 }
             }
         }
 
-        private void ProcessRootObject(int id, bool destroy = false)
+        private void ResetChanges()
         {
-            ProcessChanges(id, destroy);
+            List<int> des = new List<int>();
+            foreach (var d in data)
+            {
+                if (d.Value == null)
+                {
+                    netdata.Remove(netdata2[d.Key]);
+                    netdata2.Remove(d.Key);
+                    des.Add(d.Key);
+                }
+            }
+            foreach (var d in des)
+            {
+                manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
+                {
+                    index = d
+                }), DeliveryMethod.ReliableOrdered);
+                data.Remove(d);
+            }
+        }
+
+        private void ProcessRootObject(int id)
+        {
+            ProcessChanges(id);
             if (!netdata2.ContainsKey(id))
                 return;
             var obj = EditorUtility.InstanceIDToObject(netdata2[id]) as GameObject;
@@ -111,12 +136,12 @@ namespace NetScene
             Component[] cmps = obj.GetComponents<Component>();
             for (int j = 0; j < cmps.Length; j++)
             {
-                ProcessChanges(GetNetworkId(cmps[j].GetInstanceID()), destroy);
+                ProcessChanges(GetNetworkId(cmps[j].GetInstanceID()));
             }
             for (int i = 0; i < obj.transform.childCount; i++)
             {
                 Transform xform = obj.transform.GetChild(i);
-                ProcessRootObject(GetNetworkId(xform.gameObject.GetInstanceID()), destroy);
+                ProcessRootObject(GetNetworkId(xform.gameObject.GetInstanceID()));
             }
         }
 
@@ -162,10 +187,10 @@ namespace NetScene
             return netdata[unityid];
         }
 
-        private void ProcessChanges(int id, bool destroy = false)
+        private void ProcessChanges(int id)
         {
             var obj = EditorUtility.InstanceIDToObject(netdata2[id]);
-            if (obj == null || destroy)
+            if (obj == null)
             {
                 manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
                 {
@@ -175,7 +200,7 @@ namespace NetScene
                 {
                     netdata.Remove(netdata2[id]);
                     netdata2.Remove(id);
-                    if (isServer && obj != null)
+                    if (isServer && data[id] != null)
                         Undo.DestroyObjectImmediate(data[id]);
                     data.Remove(id);
                 }
@@ -283,6 +308,7 @@ namespace NetScene
 
         private void DestroyObject(DestroyObjectPacket obj, NetPeer peer)
         {
+            Debug.Log(data[obj.index]);
             if (data.ContainsKey(obj.index) && data[obj.index] != null)
             {
                 netdata.Remove(data[obj.index].GetInstanceID());
@@ -296,7 +322,7 @@ namespace NetScene
             List<int> des = new List<int>();
             foreach (var d in data)
             {
-                if (d.Value == null || d.Value.hideFlags.HasFlag(HideFlags.DontSaveInEditor))
+                if (d.Value == null)
                 {
                     netdata.Remove(netdata2[d.Key]);
                     netdata2.Remove(d.Key);
