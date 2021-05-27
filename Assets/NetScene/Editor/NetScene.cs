@@ -90,6 +90,12 @@ namespace NetScene
                         ProcessRootObject(GetNetworkId(d.instanceId));
                     }
                     break;
+                    case ObjectChangeKind.ChangeGameObjectStructureHierarchy:
+                    {
+                        stream.GetChangeGameObjectStructureHierarchyEvent(i, out var d);
+                        ProcessRootObject(GetNetworkId(d.instanceId));
+                    }
+                    break;
                 }
             }
         }
