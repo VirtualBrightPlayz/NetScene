@@ -510,7 +510,7 @@ namespace NetScene
             {
                 var packet = new UserInfoPacket()
                 {
-                    id = item.Value.id,
+                    id = item.Key,
                     color = item.Value.color,
                     name = item.Value.name
                 };
