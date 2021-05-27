@@ -69,19 +69,19 @@ namespace NetScene
                     case ObjectChangeKind.CreateGameObjectHierarchy:
                     {
                         stream.GetCreateGameObjectHierarchyEvent(i, out var d);
-                        ProcessChanges(d.instanceId);
+                        ProcessChanges(GetNetworkId(d.instanceId));
                     }
                     break;
                     case ObjectChangeKind.DestroyGameObjectHierarchy:
                     {
                         stream.GetDestroyGameObjectHierarchyEvent(i, out var d);
-                        ProcessChanges(d.instanceId);
+                        ProcessChanges(GetNetworkId(d.instanceId));
                     }
                     break;
                     case ObjectChangeKind.ChangeGameObjectOrComponentProperties:
                     {
                         stream.GetChangeGameObjectOrComponentPropertiesEvent(i, out var d);
-                        ProcessChanges(d.instanceId);
+                        ProcessChanges(GetNetworkId(d.instanceId));
                     }
                     break;
                 }
