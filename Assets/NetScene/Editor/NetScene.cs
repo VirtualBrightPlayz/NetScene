@@ -41,6 +41,7 @@ namespace NetScene
             processor = new NetPacketProcessor();
             processor.SubscribeNetSerializable<SpawnObjectPacket, NetPeer>(SpawnObject, () => new SpawnObjectPacket());
             processor.SubscribeNetSerializable<DestroyObjectPacket, NetPeer>(DestroyObject, () => new DestroyObjectPacket());
+            processor.SubscribeNetSerializable<UpdateIndexPacket, NetPeer>(UpdateIndex, () => new UpdateIndexPacket());
             EditorApplication.update += Update;
             ObjectChangeEvents.changesPublished += ObjectChanged;
         }
@@ -132,7 +133,13 @@ namespace NetScene
         private int GetNetIndex(int id)
         {
             if (!netdata.ContainsKey(id))
-                netdata.Add(id, EditorUtility.InstanceIDToObject(id).GetInstanceID());
+            {
+                netdata.Add(id, this.id++);
+                manager.SendToAll(processor.WriteNetSerializable(new UpdateIndexPacket()
+                {
+                    index = netdata[id],
+                }), DeliveryMethod.ReliableOrdered);
+            }
             return netdata[id];
         }
 
@@ -148,8 +155,6 @@ namespace NetScene
                 if (!data.ContainsKey(id))
                 {
                     data.Remove(id);
-                    if (!isServer)
-                    netdata.Remove(id);
                 }
             }
             else
@@ -226,7 +231,6 @@ namespace NetScene
                     if (!data.ContainsKey(obj.parentIndex))
                     {
                         data.Add(obj.parentIndex, new GameObject());
-                        netdata.Add(data[obj.parentIndex].GetInstanceID(), obj.parentIndex);
                     }
                     UnityEngine.Object ob = (data[obj.parentIndex] as GameObject).GetComponent(t);
                     if (ob == null)
@@ -234,13 +238,11 @@ namespace NetScene
                         ob = (data[obj.parentIndex] as GameObject).AddComponent(t);
                     }
                     data.Add(obj.index, ob as UnityEngine.Object);
-                    netdata.Add(ob.GetInstanceID(), obj.index);
                 }
                 else
                 {
                     object ob = t.GetConstructor(new Type[0]).Invoke(new object[0]);
                     data.Add(obj.index, ob as UnityEngine.Object);
-                    netdata.Add((ob as UnityEngine.Object).GetInstanceID(), obj.index);
                 }
                 Debug.Assert(data[obj.index] == null, obj.index);
                 EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
@@ -254,6 +256,16 @@ namespace NetScene
                 UnityEngine.Object.DestroyImmediate(data[obj.index]);
                 data.Remove(obj.index);
             }
+        }
+
+        private void UpdateIndex(UpdateIndexPacket obj, NetPeer peer)
+        {
+            id = obj.index;
+            if (isServer)
+                manager.SendToAll(processor.WriteNetSerializable(new UpdateIndexPacket()
+                {
+                    index = id,
+                }), DeliveryMethod.ReliableOrdered);
         }
 
         void INetEventListener.OnConnectionRequest(ConnectionRequest request)
@@ -286,13 +298,17 @@ namespace NetScene
             if (!isServer)
                 return;
             peer.Tag = new PeerData();
+            peer.Send(processor.WriteNetSerializable(new UpdateIndexPacket()
+            {
+                index = id,
+            }), DeliveryMethod.ReliableOrdered);
             foreach (var item in data)
             {
                 var packet = new SpawnObjectPacket()
                 {
-                    index = item.Key,
-                    childIndex = GetChildIndex(item.Value),
-                    parentIndex = GetParentIndex(item.Value),
+                    index = GetNetIndex(item.Key),
+                    childIndex = GetNetIndex(GetChildIndex(item.Value)),
+                    parentIndex = GetNetIndex(GetParentIndex(item.Value)),
                     assetId = item.Value.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(item.Value, false)
                 };

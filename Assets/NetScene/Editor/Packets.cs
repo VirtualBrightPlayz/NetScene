@@ -46,4 +46,19 @@ namespace NetScene
             writer.Put(index);
         }
     }
+
+    public struct UpdateIndexPacket : INetSerializable
+    {
+        public int index;
+
+        void INetSerializable.Deserialize(NetDataReader reader)
+        {
+            index = reader.GetInt();
+        }
+
+        void INetSerializable.Serialize(NetDataWriter writer)
+        {
+            writer.Put(index);
+        }
+    }
 }
