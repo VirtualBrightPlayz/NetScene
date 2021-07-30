@@ -120,17 +120,20 @@ namespace NetScene
     {
         public int id;
         public int parent;
+        public bool isNull;
 
         public void Deserialize(NetDataReader reader)
         {
             id = reader.GetInt();
             parent = reader.GetInt();
+            isNull = reader.GetBool();
         }
 
         public void Serialize(NetDataWriter writer)
         {
             writer.Put(id);
             writer.Put(parent);
+            writer.Put(isNull);
         }
     }
 
@@ -141,6 +144,7 @@ namespace NetScene
         public static int objectCount = int.MinValue;
         public int id;
         public int parent;
+        public bool isNull = false;
 
         public UnitySceneObject()
         {
@@ -207,13 +211,15 @@ namespace NetScene
 
         public static implicit operator UnitySceneObjectPacket(UnitySceneObject d) => new UnitySceneObjectPacket()
         {
-            id = d.id,
-            parent = d.parent
+            id = d == null ? default : d.id,
+            parent = d == null ? default : d.parent,
+            isNull = d == null
         };
         public static implicit operator UnitySceneObject(UnitySceneObjectPacket d) => new UnitySceneObject()
         {
             id = d.id,
-            parent = d.parent
+            parent = d.parent,
+            isNull = d.isNull
         };
     }
 }
