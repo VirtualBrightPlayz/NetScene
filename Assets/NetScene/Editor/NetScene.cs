@@ -332,6 +332,7 @@ namespace NetScene
             {
                 if (isServer)
                     Undo.RecordObject(scnObj, $"{peer.EndPoint} Network Modify Object {scnObj.name}");
+                Debug.Log(obj.json);
                 EditorJsonUtility.FromJsonOverwrite(obj.json, scnObj);
             }
             else
