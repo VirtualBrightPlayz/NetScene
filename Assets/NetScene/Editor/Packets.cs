@@ -8,13 +8,13 @@ namespace NetScene
 {
     public struct SpawnObjectPacket : INetSerializable
     {
-        public UnitySceneObject obj;
+        public UnitySceneObjectPacket obj;
         public string assetId;
         public string json;
 
         void INetSerializable.Deserialize(NetDataReader reader)
         {
-            obj = reader.Get<UnitySceneObject>();
+            obj = reader.Get<UnitySceneObjectPacket>();
             assetId = reader.GetString();
             json = reader.GetString();
         }
@@ -29,11 +29,11 @@ namespace NetScene
 
     public struct DestroyObjectPacket : INetSerializable
     {
-        public UnitySceneObject obj;
+        public UnitySceneObjectPacket obj;
 
         void INetSerializable.Deserialize(NetDataReader reader)
         {
-            obj = reader.Get<UnitySceneObject>();
+            obj = reader.Get<UnitySceneObjectPacket>();
         }
 
         void INetSerializable.Serialize(NetDataWriter writer)
@@ -99,13 +99,13 @@ namespace NetScene
     {
         public bool selected;
         public int id;
-        public UnitySceneObject obj;
+        public UnitySceneObjectPacket obj;
 
         void INetSerializable.Deserialize(NetDataReader reader)
         {
             selected = reader.GetBool();
             id = reader.GetInt();
-            obj = reader.Get<UnitySceneObject>();
+            obj = reader.Get<UnitySceneObjectPacket>();
         }
 
         void INetSerializable.Serialize(NetDataWriter writer)
@@ -116,7 +116,25 @@ namespace NetScene
         }
     }
 
-    public class UnitySceneObject : INetSerializable
+    public struct UnitySceneObjectPacket : INetSerializable
+    {
+        public int id;
+        public int parent;
+
+        public void Deserialize(NetDataReader reader)
+        {
+            id = reader.GetInt();
+            parent = reader.GetInt();
+        }
+
+        public void Serialize(NetDataWriter writer)
+        {
+            writer.Put(id);
+            writer.Put(parent);
+        }
+    }
+
+    public class UnitySceneObject
     {
         public static Dictionary<Object, int> objectLookup = new Dictionary<Object, int>();
         public static Dictionary<int, UnitySceneObject> sceneObjectLookup = new Dictionary<int, UnitySceneObject>();
@@ -187,16 +205,15 @@ namespace NetScene
             return objectLookup[obj];
         }
 
-        public void Deserialize(NetDataReader reader)
+        public static implicit operator UnitySceneObjectPacket(UnitySceneObject d) => new UnitySceneObjectPacket()
         {
-            id = reader.GetInt();
-            parent = reader.GetInt();
-        }
-
-        public void Serialize(NetDataWriter writer)
+            id = d.id,
+            parent = d.parent
+        };
+        public static implicit operator UnitySceneObject(UnitySceneObjectPacket d) => new UnitySceneObject()
         {
-            writer.Put(id);
-            writer.Put(parent);
-        }
+            id = d.id,
+            parent = d.parent
+        };
     }
 }

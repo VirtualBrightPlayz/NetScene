@@ -103,6 +103,7 @@ namespace NetScene
             peers = new Dictionary<int, PeerData>();
             manager = new NetManager(this);
             processor = new NetPacketProcessor();
+            processor.RegisterNestedType<UnitySceneObjectPacket>();
             processor.SubscribeNetSerializable<SpawnObjectPacket, NetPeer>(SpawnObject, () => new SpawnObjectPacket());
             processor.SubscribeNetSerializable<DestroyObjectPacket, NetPeer>(DestroyObject, () => new DestroyObjectPacket());
             processor.SubscribeNetSerializable<UpdateIndexPacket, NetPeer>(UpdateIndex, () => new UpdateIndexPacket());
@@ -333,7 +334,7 @@ namespace NetScene
 
         private void SpawnObject(SpawnObjectPacket obj, NetPeer peer)
         {
-            var scnObj = obj.obj.GetObject();
+            var scnObj = ((UnitySceneObject)obj.obj).GetObject();
             if (scnObj != null)
             {
                 if (isServer)
@@ -457,6 +458,7 @@ namespace NetScene
             }
             foreach (var item in UnitySceneObject.objectLookup)
             {
+                Debug.Log(item.Key.name);
                 var packet = new SpawnObjectPacket()
                 {
                     obj = UnitySceneObject.Get(item.Key),
