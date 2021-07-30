@@ -12,37 +12,48 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Object = UnityEngine.Object;
 
 namespace NetScene
 {
     public class NetScene : INetEventListener
     {
+        private static NetScene _singleton;
+        public static NetScene Singleton
+        {
+            get
+            {
+                if (_singleton == null)
+                    _singleton = new NetScene();
+                return _singleton;
+            }
+        }
         public NetManager manager;
         public NetPacketProcessor processor;
         public string password;
         public string username;
         public Color color;
         public bool isServer;
-        public Dictionary<int, UnityEngine.Object> data;
         // first is local unity id; second is net id
         public Dictionary<int, int> netdata;
         // second is local unity id; first is net id
         public Dictionary<int, int> netdata2;
         public Dictionary<int, int> selections;
         public Dictionary<int, PeerData> peers;
+        public int sceneObjectCount = int.MinValue;
         int id = int.MinValue;
         public int prevSelect;
         public int localId;
 
-        public NetScene()
+        private NetScene()
         {
+            _singleton = this;
             Init();
         }
 
         public void Host(int port)
         {
             isServer = true;
-            data.Clear();
             netdata.Clear();
             netdata2.Clear();
             selections.Clear();
@@ -55,7 +66,7 @@ namespace NetScene
                 var arr = EditorSceneManager.GetSceneAt(j).GetRootGameObjects();
                 for (int i = 0; i < arr.Length; i++)
                 {
-                    ProcessRootObject(GetNetworkId(arr[i].GetInstanceID()));
+                    ProcessRootObject(arr[i]);
                 }
             }
             manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
@@ -64,7 +75,6 @@ namespace NetScene
         public void Connect(string ip, int port)
         {
             isServer = false;
-            data.Clear();
             netdata.Clear();
             netdata2.Clear();
             selections.Clear();
@@ -87,7 +97,6 @@ namespace NetScene
         {
             Debug.Log("INIT");
             password = string.Empty;
-            data = new Dictionary<int, UnityEngine.Object>();
             netdata = new Dictionary<int, int>();
             netdata2 = new Dictionary<int, int>();
             selections = new Dictionary<int, int>();
@@ -108,7 +117,7 @@ namespace NetScene
 
         public void OnDestroy()
         {
-            data = null;
+            _singleton = null;
             netdata = null;
             netdata2 = null;
             selections = null;
@@ -128,20 +137,20 @@ namespace NetScene
             manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
             {
                 selected = false,
-                index = GetNetworkId(prevSelect)
+                obj = UnitySceneObject.Get(prevSelect),
             }), DeliveryMethod.ReliableOrdered);
-            selections.Remove(GetNetworkId(prevSelect));
+            selections.Remove(prevSelect);
             if (Selection.activeTransform == null)
                 return;
             {
                 manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
                 {
                     selected = true,
-                    index = GetNetworkId(Selection.activeTransform.gameObject.GetInstanceID()),
+                    obj = UnitySceneObject.Get(Selection.activeTransform),
                     id = localId,
                 }), DeliveryMethod.ReliableOrdered);
-                selections.Add(GetNetworkId(Selection.activeTransform.gameObject.GetInstanceID()), localId);
-                prevSelect = Selection.activeTransform.gameObject.GetInstanceID();
+                selections.Add(UnitySceneObject.Get(Selection.activeTransform).id, localId);
+                prevSelect = UnitySceneObject.Get(Selection.activeTransform).id;
             }
         }
 
@@ -149,6 +158,8 @@ namespace NetScene
         {
             foreach (var item in selections)
             {
+                if (!peers.ContainsKey(item.Value))
+                    continue;
                 var ob = EditorUtility.InstanceIDToObject(netdata2[item.Key]);
                 if (ob is GameObject go)
                 {
@@ -160,6 +171,7 @@ namespace NetScene
             }
         }
 
+        // when an object is modified
         private void ObjectChanged(ref ObjectChangeEventStream stream)
         {
             for (int i = 0; i < stream.length; i++)
@@ -169,33 +181,34 @@ namespace NetScene
                     case ObjectChangeKind.CreateGameObjectHierarchy:
                     {
                         stream.GetCreateGameObjectHierarchyEvent(i, out var d);
-                        ProcessRootObject(GetNetworkId(d.instanceId));
+                        ProcessRootObject(EditorUtility.InstanceIDToObject(d.instanceId));
                     }
                     break;
                     case ObjectChangeKind.DestroyGameObjectHierarchy:
                     {
                         stream.GetDestroyGameObjectHierarchyEvent(i, out var d);
-                        ProcessRootObject(GetNetworkId(d.instanceId));
+                        Debug.Log(EditorUtility.InstanceIDToObject(d.instanceId));
+                        ProcessRootObject(EditorUtility.InstanceIDToObject(d.instanceId));
                         ResetChanges();
                     }
                     break;
                     case ObjectChangeKind.ChangeGameObjectOrComponentProperties:
                     {
                         stream.GetChangeGameObjectOrComponentPropertiesEvent(i, out var d);
-                        ProcessRootObject(GetNetworkId(d.instanceId));
+                        ProcessRootObject(EditorUtility.InstanceIDToObject(d.instanceId));
                     }
                     break;
                     case ObjectChangeKind.ChangeGameObjectStructure:
                     {
                         stream.GetChangeGameObjectStructureEvent(i, out var d);
-                        ProcessRootObject(GetNetworkId(d.instanceId));
+                        ProcessRootObject(EditorUtility.InstanceIDToObject(d.instanceId));
                         ResetChanges();
                     }
                     break;
                     case ObjectChangeKind.ChangeGameObjectStructureHierarchy:
                     {
                         stream.GetChangeGameObjectStructureHierarchyEvent(i, out var d);
-                        ProcessRootObject(GetNetworkId(d.instanceId));
+                        ProcessRootObject(EditorUtility.InstanceIDToObject(d.instanceId));
                         ResetChanges();
                     }
                     break;
@@ -205,121 +218,43 @@ namespace NetScene
 
         private void ResetChanges()
         {
-            List<int> des = new List<int>();
-            foreach (var d in data)
-            {
-                if (d.Value == null)
-                {
-                    netdata.Remove(netdata2[d.Key]);
-                    netdata2.Remove(d.Key);
-                    des.Add(d.Key);
-                }
-            }
-            foreach (var d in des)
-            {
-                manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
-                {
-                    index = d
-                }), DeliveryMethod.ReliableOrdered);
-                data.Remove(d);
-            }
         }
 
-        private void ProcessRootObject(int id)
+        private void ProcessRootObject(Object obj)
         {
-            ProcessChanges(id);
-            if (!netdata2.ContainsKey(id))
+            ProcessChanges(obj);
+            Transform scnObj = null;
+            if (obj is Transform)
+                scnObj = (Transform)obj;
+            else if (obj is GameObject go)
+                scnObj = go.transform;
+            else if (obj is Component cmp1)
+                scnObj = cmp1.transform;
+            if (scnObj == null)
                 return;
-            var obj = EditorUtility.InstanceIDToObject(netdata2[id]) as GameObject;
-            if (obj == null)
-                return;
-            Component[] cmps = obj.GetComponents<Component>();
+            Component[] cmps = scnObj.GetComponents<Component>();
             for (int j = 0; j < cmps.Length; j++)
             {
-                ProcessChanges(GetNetworkId(cmps[j].GetInstanceID()));
+                ProcessChanges(cmps[j]);
             }
-            for (int i = 0; i < obj.transform.childCount; i++)
+            for (int i = 0; i < scnObj.transform.childCount; i++)
             {
-                Transform xform = obj.transform.GetChild(i);
-                ProcessRootObject(GetNetworkId(xform.gameObject.GetInstanceID()));
+                Transform xform = scnObj.transform.GetChild(i);
+                ProcessRootObject(xform);
             }
         }
 
-        private int GetChildIndex(UnityEngine.Object obj)
+        private void ProcessChanges(Object obj)
         {
-            if (obj is GameObject go)
-            {
-                return go.transform.GetSiblingIndex();
-            }
-            else if (obj is Component cmp)
-            {
-                return cmp.GetComponents<Component>().ToList().IndexOf(cmp);
-            }
-            return -1;
-        }
-
-        private int GetParentIndex(UnityEngine.Object obj)
-        {
-            if (obj is GameObject go)
-            {
-                if (go.transform.parent == null)
-                    return GetNetworkId(obj.GetInstanceID());
-                return GetNetworkId(go.transform.parent.gameObject.GetInstanceID());
-            }
-            else if (obj is Component cmp)
-            {
-                return GetNetworkId(cmp.gameObject.GetInstanceID());
-            }
-            return GetNetworkId(obj.GetInstanceID());
-        }
-
-        private int GetNetworkId(int unityid)
-        {
-            if (!netdata.ContainsKey(unityid))
-            {
-                netdata.Add(unityid, ++id);
-                netdata2.Add(netdata[unityid], unityid);
-                manager.SendToAll(processor.WriteNetSerializable(new UpdateIndexPacket()
-                {
-                    index = netdata[unityid]
-                }), DeliveryMethod.ReliableOrdered);
-            }
-            return netdata[unityid];
-        }
-
-        private void ProcessChanges(int id)
-        {
-            var obj = EditorUtility.InstanceIDToObject(netdata2[id]);
-            if (obj == null)
-            {
-                manager.SendToAll(processor.WriteNetSerializable(new DestroyObjectPacket()
-                {
-                    index = id
-                }), DeliveryMethod.ReliableOrdered);
-                if (data.ContainsKey(id))
-                {
-                    netdata.Remove(netdata2[id]);
-                    netdata2.Remove(id);
-                    if (isServer && data[id] != null)
-                        Undo.DestroyObjectImmediate(data[id]);
-                    data.Remove(id);
-                }
-            }
-            else
+            if (obj != null)
             {
                 var packet = new SpawnObjectPacket()
                 {
-                    index = id,
-                    childIndex = GetChildIndex(obj),
-                    parentIndex = GetParentIndex(obj),
+                    obj = UnitySceneObject.Get(obj),
                     assetId = obj.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(obj, false)
                 };
                 manager.SendToAll(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
-                if (!data.ContainsKey(id))
-                {
-                    data.Add(id, obj);
-                }
             }
         }
 
@@ -363,22 +298,22 @@ namespace NetScene
 
         private void OnSelectPacket(SelectPacket obj, NetPeer peer)
         {
-            if (selections.ContainsKey(obj.index))
+            if (selections.ContainsKey(obj.obj.id))
             {
                 if (obj.selected)
                 {
-                    selections[obj.index] = peers[obj.id].id;
+                    selections[obj.obj.id] = peers[obj.id].id;
                 }
                 else
                 {
-                    selections.Remove(obj.index);
+                    selections.Remove(obj.obj.id);
                 }
             }
             else
             {
                 if (obj.selected)
                 {
-                    selections.Add(obj.index, peers[obj.id].id);
+                    selections.Add(obj.obj.id, peers[obj.id].id);
                 }
             }
             if (isServer)
@@ -389,48 +324,38 @@ namespace NetScene
 
         private void SpawnObject(SpawnObjectPacket obj, NetPeer peer)
         {
-            if (data.ContainsKey(obj.index) && data[obj.index] != null)
+            var scnObj = obj.obj.GetObject();
+            if (scnObj != null)
             {
                 if (isServer)
-                    Undo.RecordObject(data[obj.index], $"{peer.EndPoint} Network Modify Object {data[obj.index].name}");
-                EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
+                    Undo.RecordObject(scnObj, $"{peer.EndPoint} Network Modify Object {scnObj.name}");
+                EditorJsonUtility.FromJsonOverwrite(obj.json, scnObj);
             }
             else
             {
                 Type t = Type.GetType(obj.assetId);
+                if (t.IsSubclassOf(typeof(Transform)))
+                {
+                    scnObj = new GameObject();
+                    
+                }
                 if (t.IsSubclassOf(typeof(Component)))
                 {
-                    if (!data.ContainsKey(obj.parentIndex))
+                    Object ob = UnitySceneObject.Get(obj.obj.parent).GetObject();
+                    if (ob is Transform xform)
                     {
-                        Debug.LogError("Parent Does not exist!");
-                        // return;
+                        scnObj = xform.gameObject.AddComponent(t);
                     }
-                    UnityEngine.Object ob = (data[obj.parentIndex] as GameObject).GetComponent(t);
-                    if (ob == null)
-                    {
-                        ob = (data[obj.parentIndex] as GameObject).AddComponent(t);
-                    }
-                    data.Add(obj.index, ob);
-                    netdata.Add(ob.GetInstanceID(), obj.index);
-                    netdata2.Add(obj.index, ob.GetInstanceID());
                 }
-                else
-                {
-                    UnityEngine.Object ob = t.GetConstructor(new Type[0]).Invoke(new object[0]) as UnityEngine.Object;
-                    data.Add(obj.index, ob);
-                    netdata.Add(ob.GetInstanceID(), obj.index);
-                    netdata2.Add(obj.index, ob.GetInstanceID());
-                }
-                Debug.Assert(data[obj.index] != null, obj.index);
                 if (isServer)
-                    Undo.RecordObject(data[obj.index], $"{peer.EndPoint} Network Modify Object {data[obj.index].name}");
-                EditorJsonUtility.FromJsonOverwrite(obj.json, data[obj.index]);
+                    Undo.RecordObject(scnObj, $"{peer.EndPoint} Network Modify Object {scnObj}");
+                EditorJsonUtility.FromJsonOverwrite(obj.json, scnObj);
             }
         }
 
         private void DestroyObject(DestroyObjectPacket obj, NetPeer peer)
         {
-            if (data.ContainsKey(obj.index) && data[obj.index] != null)
+            /*if (data.ContainsKey(obj.index) && data[obj.index] != null)
             {
                 netdata.Remove(data[obj.index].GetInstanceID());
                 netdata2.Remove(obj.index);
@@ -453,7 +378,7 @@ namespace NetScene
             foreach (var d in des)
             {
                 data.Remove(d);
-            }
+            }*/
         }
 
         private void UpdateIndex(UpdateIndexPacket obj, NetPeer peer)
@@ -516,13 +441,11 @@ namespace NetScene
                 };
                 peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
             }
-            foreach (var item in data)
+            foreach (var item in UnitySceneObject.objectLookup)
             {
                 var packet = new SpawnObjectPacket()
                 {
-                    index = item.Key,
-                    childIndex = GetChildIndex(item.Value),
-                    parentIndex = GetParentIndex(item.Value),
+                    obj = UnitySceneObject.Get(item.Key),
                     assetId = item.Value.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(item.Value, false)
                 };
@@ -533,7 +456,7 @@ namespace NetScene
                 var packet = new SelectPacket()
                 {
                     selected = true,
-                    index = item.Key,
+                    obj = UnitySceneObject.Get(item.Key),
                     id = item.Value
                 };
                 peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);

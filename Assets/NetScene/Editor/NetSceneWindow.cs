@@ -17,7 +17,7 @@ namespace NetScene
         {
             if (netScene == null)
             {
-                netScene = new NetScene();
+                netScene = NetScene.Singleton;
             }
         }
 

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using LiteNetLib.Utils;
 using UnityEngine;
 
@@ -7,26 +8,20 @@ namespace NetScene
 {
     public struct SpawnObjectPacket : INetSerializable
     {
-        public int index;
-        public int parentIndex;
-        public int childIndex;
+        public UnitySceneObject obj;
         public string assetId;
         public string json;
 
         void INetSerializable.Deserialize(NetDataReader reader)
         {
-            index = reader.GetInt();
-            parentIndex = reader.GetInt();
-            childIndex = reader.GetInt();
+            obj = reader.Get<UnitySceneObject>();
             assetId = reader.GetString();
             json = reader.GetString();
         }
 
         void INetSerializable.Serialize(NetDataWriter writer)
         {
-            writer.Put(index);
-            writer.Put(parentIndex);
-            writer.Put(childIndex);
+            writer.Put(obj);
             writer.Put(assetId);
             writer.Put(json);
         }
@@ -34,16 +29,16 @@ namespace NetScene
 
     public struct DestroyObjectPacket : INetSerializable
     {
-        public int index;
+        public UnitySceneObject obj;
 
         void INetSerializable.Deserialize(NetDataReader reader)
         {
-            index = reader.GetInt();
+            obj = reader.Get<UnitySceneObject>();
         }
 
         void INetSerializable.Serialize(NetDataWriter writer)
         {
-            writer.Put(index);
+            writer.Put(obj);
         }
     }
 
@@ -103,21 +98,105 @@ namespace NetScene
     public struct SelectPacket : INetSerializable
     {
         public bool selected;
-        public int index;
         public int id;
+        public UnitySceneObject obj;
 
         void INetSerializable.Deserialize(NetDataReader reader)
         {
             selected = reader.GetBool();
-            index = reader.GetInt();
             id = reader.GetInt();
+            obj = reader.Get<UnitySceneObject>();
         }
 
         void INetSerializable.Serialize(NetDataWriter writer)
         {
             writer.Put(selected);
-            writer.Put(index);
             writer.Put(id);
+            writer.Put(obj);
+        }
+    }
+
+    public class UnitySceneObject : INetSerializable
+    {
+        public static Dictionary<Object, int> objectLookup = new Dictionary<Object, int>();
+        public static Dictionary<int, UnitySceneObject> sceneObjectLookup = new Dictionary<int, UnitySceneObject>();
+        public static int objectCount = int.MinValue;
+        public int id;
+        public int parent;
+
+        public UnitySceneObject()
+        {
+        }
+
+        public UnitySceneObject(GameObject obj)
+        {
+            id = GetId(obj);
+            parent = GetId(obj.transform);
+            sceneObjectLookup.Add(id, this);
+        }
+
+        public UnitySceneObject(Component obj)
+        {
+            id = GetId(obj);
+            if (obj is Transform transform)
+                parent = GetId(transform.parent);
+            else
+                parent = GetId(obj.transform);
+            sceneObjectLookup.Add(id, this);
+        }
+
+        public Object GetObject()
+        {
+            int id = this.id;
+            return objectLookup.FirstOrDefault(p => p.Value == id).Key;
+        }
+
+        public static bool IsValid(Object obj)
+        {
+            if (obj is Component)
+                return true;
+            if (obj is GameObject)
+                return true;
+            return false;
+        }
+
+        public static UnitySceneObject Get(Object obj)
+        {
+            if (IsValid(obj))
+            {
+                return sceneObjectLookup[GetId(obj)];
+            }
+            return null;
+        }
+
+        public static UnitySceneObject Get(int id)
+        {
+            if (sceneObjectLookup.ContainsKey(id))
+            {
+                return sceneObjectLookup[id];
+            }
+            return null;
+        }
+
+        private static int GetId(Object obj)
+        {
+            if (!objectLookup.ContainsKey(obj))
+            {
+                objectLookup.Add(obj, ++objectCount);
+            }
+            return objectLookup[obj];
+        }
+
+        public void Deserialize(NetDataReader reader)
+        {
+            id = reader.GetInt();
+            parent = reader.GetInt();
+        }
+
+        public void Serialize(NetDataWriter writer)
+        {
+            writer.Put(id);
+            writer.Put(parent);
         }
     }
 }
