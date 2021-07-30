@@ -353,8 +353,9 @@ namespace NetScene
                         scnObj = xform.gameObject.AddComponent(t);
                     }
                 }
-                else
+                if (scnObj == null)
                 {
+                    Debug.Log(obj.assetId);
                     return;
                 }
                 if (isServer)
