@@ -339,7 +339,7 @@ namespace NetScene
             else
             {
                 Type t = Type.GetType(obj.assetId);
-                if (t.IsSubclassOf(typeof(Transform)))
+                if (t.IsSubclassOf(typeof(Transform)) || t == typeof(Transform))
                 {
                     var ob = new GameObject();
                     ob.transform.parent = UnitySceneObject.Get(obj.obj.parent)?.GetObject() as Transform;
