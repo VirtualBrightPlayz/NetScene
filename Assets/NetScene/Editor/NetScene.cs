@@ -294,7 +294,8 @@ namespace NetScene
                 }), DeliveryMethod.ReliableOrdered);
                 return;
             }
-            peers.Add(obj.id, new PeerData(obj.id, obj.name, obj.color));
+            else
+                peers.Add(obj.id, new PeerData(obj.id, obj.name, obj.color));
         }
 
         private void OnSetLocalId(UserSetInfoPacket obj, NetPeer peer)
