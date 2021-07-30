@@ -164,7 +164,12 @@ namespace NetScene
         {
             if (IsValid(obj))
             {
-                return sceneObjectLookup[GetId(obj)];
+                int id = GetId(obj);
+                if (!sceneObjectLookup.ContainsKey(id))
+                {
+                    return null;
+                }
+                return sceneObjectLookup[id];
             }
             return null;
         }
