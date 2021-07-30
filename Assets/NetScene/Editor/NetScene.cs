@@ -135,11 +135,12 @@ namespace NetScene
         {
             if (manager == null)
                 return;
-            manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
-            {
-                selected = false,
-                obj = UnitySceneObject.Get(prevSelect),
-            }), DeliveryMethod.ReliableOrdered);
+            if (UnitySceneObject.Get(prevSelect) != null)
+                manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
+                {
+                    selected = false,
+                    obj = UnitySceneObject.Get(prevSelect),
+                }), DeliveryMethod.ReliableOrdered);
             selections.Remove(prevSelect);
             if (Selection.activeTransform == null)
                 return;
