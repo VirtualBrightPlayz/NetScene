@@ -458,7 +458,7 @@ namespace NetScene
                 var packet = new SpawnObjectPacket()
                 {
                     obj = UnitySceneObject.Get(item.Key),
-                    assetId = item.Value.GetType().AssemblyQualifiedName,
+                    assetId = UnitySceneObject.Get(item.Value)?.GetObject().GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(item.Value, false)
                 };
                 peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
