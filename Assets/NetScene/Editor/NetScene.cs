@@ -150,7 +150,7 @@ namespace NetScene
             {
                 if (!peers.ContainsKey(item.Value))
                     continue;
-                var ob = UnitySceneObject.Get(item.Key).GetObject();
+                var ob = UnitySceneObject.Get(item.Key)?.GetObject();
                 if (ob is GameObject go)
                 {
                     Handles.color = peers[item.Value].color;
@@ -327,7 +327,7 @@ namespace NetScene
 
         private void SpawnObject(SpawnObjectPacket obj, NetPeer peer)
         {
-            var scnObj = ((UnitySceneObject)obj.obj).GetObject();
+            var scnObj = ((UnitySceneObject)obj.obj)?.GetObject();
             if (scnObj != null)
             {
                 if (isServer)
@@ -345,7 +345,7 @@ namespace NetScene
                 }
                 else if (t.IsSubclassOf(typeof(Component)))
                 {
-                    Object ob = UnitySceneObject.Get(obj.obj.parent).GetObject();
+                    Object ob = UnitySceneObject.Get(obj.obj.parent)?.GetObject();
                     if (ob is Transform xform)
                     {
                         scnObj = xform.gameObject.AddComponent(t);
