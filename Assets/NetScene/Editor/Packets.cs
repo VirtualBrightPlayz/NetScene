@@ -130,6 +130,8 @@ namespace NetScene
 
         public UnitySceneObject(GameObject obj)
         {
+            if (obj == null)
+                return;
             id = GetId(obj);
             parent = GetId(obj.transform);
             sceneObjectLookup.Add(id, this);
@@ -137,6 +139,8 @@ namespace NetScene
 
         public UnitySceneObject(Component obj)
         {
+            if (obj == null)
+                return;
             id = GetId(obj);
             if (obj is Transform transform)
                 parent = GetId(transform.parent);
@@ -185,6 +189,8 @@ namespace NetScene
 
         private static int GetId(Object obj)
         {
+            if (obj == null)
+                return objectCount;
             if (!objectLookup.ContainsKey(obj))
             {
                 objectLookup.Add(obj, ++objectCount);
