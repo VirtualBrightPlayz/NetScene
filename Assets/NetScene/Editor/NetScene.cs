@@ -236,7 +236,7 @@ namespace NetScene
 
         private void ProcessChanges(Object obj)
         {
-            if (obj != null && UnitySceneObject.IsValid(obj))
+            if (obj != null)
             {
                 if (UnitySceneObject.Get(obj) == null)
                 {
