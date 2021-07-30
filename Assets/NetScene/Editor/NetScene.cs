@@ -66,7 +66,7 @@ namespace NetScene
                 var arr = EditorSceneManager.GetSceneAt(j).GetRootGameObjects();
                 for (int i = 0; i < arr.Length; i++)
                 {
-                    ProcessRootObject(arr[i]);
+                    ProcessRootObject(arr[i].transform);
                 }
             }
             manager.Start(IPAddress.Any, IPAddress.IPv6Any, port);
@@ -255,9 +255,6 @@ namespace NetScene
                         case Component cmp:
                             new UnitySceneObject(cmp);
                         break;
-                        case GameObject go:
-                            new UnitySceneObject(go);
-                        break;
                     }
                 }
                 var packet = new SpawnObjectPacket()
@@ -348,16 +345,21 @@ namespace NetScene
                 Type t = Type.GetType(obj.assetId);
                 if (t.IsSubclassOf(typeof(Transform)))
                 {
-                    scnObj = new GameObject();
-                    
+                    var ob = new GameObject();
+                    ob.transform.parent = UnitySceneObject.Get(obj.obj.parent)?.GetObject() as Transform;
+                    scnObj = ob;
                 }
-                if (t.IsSubclassOf(typeof(Component)))
+                else if (t.IsSubclassOf(typeof(Component)))
                 {
                     Object ob = UnitySceneObject.Get(obj.obj.parent).GetObject();
                     if (ob is Transform xform)
                     {
                         scnObj = xform.gameObject.AddComponent(t);
                     }
+                }
+                else
+                {
+                    return;
                 }
                 if (isServer)
                     Undo.RecordObject(scnObj, $"{peer.EndPoint} Network Modify Object {scnObj}");

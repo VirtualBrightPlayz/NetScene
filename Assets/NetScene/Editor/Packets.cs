@@ -128,15 +128,6 @@ namespace NetScene
         {
         }
 
-        public UnitySceneObject(GameObject obj)
-        {
-            if (obj == null)
-                return;
-            id = GetId(obj);
-            parent = GetId(obj.transform);
-            sceneObjectLookup.Add(id, this);
-        }
-
         public UnitySceneObject(Component obj)
         {
             if (obj == null)
@@ -158,8 +149,6 @@ namespace NetScene
         public static bool IsValid(Object obj)
         {
             if (obj is Component)
-                return true;
-            if (obj is GameObject)
                 return true;
             return false;
         }
