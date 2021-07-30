@@ -34,10 +34,6 @@ namespace NetScene
         public string username;
         public Color color;
         public bool isServer;
-        // first is local unity id; second is net id
-        public Dictionary<int, int> netdata;
-        // second is local unity id; first is net id
-        public Dictionary<int, int> netdata2;
         public Dictionary<int, int> selections;
         public Dictionary<int, PeerData> peers;
         public int sceneObjectCount = int.MinValue;
@@ -54,8 +50,6 @@ namespace NetScene
         public void Host(int port)
         {
             isServer = true;
-            netdata.Clear();
-            netdata2.Clear();
             selections.Clear();
             peers.Clear();
             id = int.MinValue;
@@ -75,8 +69,6 @@ namespace NetScene
         public void Connect(string ip, int port)
         {
             isServer = false;
-            netdata.Clear();
-            netdata2.Clear();
             selections.Clear();
             peers.Clear();
             id = int.MinValue;
@@ -97,8 +89,6 @@ namespace NetScene
         {
             Debug.Log("INIT");
             password = string.Empty;
-            netdata = new Dictionary<int, int>();
-            netdata2 = new Dictionary<int, int>();
             selections = new Dictionary<int, int>();
             peers = new Dictionary<int, PeerData>();
             manager = new NetManager(this);
@@ -119,8 +109,6 @@ namespace NetScene
         public void OnDestroy()
         {
             _singleton = null;
-            netdata = null;
-            netdata2 = null;
             selections = null;
             peers = null;
             manager = null;
@@ -162,7 +150,7 @@ namespace NetScene
             {
                 if (!peers.ContainsKey(item.Value))
                     continue;
-                var ob = EditorUtility.InstanceIDToObject(netdata2[item.Key]);
+                var ob = UnitySceneObject.Get(item.Key).GetObject();
                 if (ob is GameObject go)
                 {
                     Handles.color = peers[item.Value].color;
