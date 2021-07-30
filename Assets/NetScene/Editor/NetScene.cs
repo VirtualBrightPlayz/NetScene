@@ -246,8 +246,20 @@ namespace NetScene
 
         private void ProcessChanges(Object obj)
         {
-            if (obj != null)
+            if (obj != null && UnitySceneObject.IsValid(obj))
             {
+                if (UnitySceneObject.Get(obj) == null)
+                {
+                    switch (obj)
+                    {
+                        case Component cmp:
+                            new UnitySceneObject(cmp);
+                        break;
+                        case GameObject go:
+                            new UnitySceneObject(go);
+                        break;
+                    }
+                }
                 var packet = new SpawnObjectPacket()
                 {
                     obj = UnitySceneObject.Get(obj),
