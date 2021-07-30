@@ -245,6 +245,9 @@ namespace NetScene
                         case Component cmp:
                             new UnitySceneObject(cmp);
                         break;
+                        case GameObject go:
+                            new UnitySceneObject(go.transform);
+                        break;
                     }
                 }
                 var packet = new SpawnObjectPacket()
