@@ -339,6 +339,10 @@ namespace NetScene
             {
                 if (isServer)
                     Undo.RecordObject(scnObj, $"{peer.EndPoint} Network Modify Object {scnObj.name}");
+                if (scnObj is GameObject go)
+                {
+                    scnObj = go.transform;
+                }
                 Debug.Log(scnObj.name);
                 Debug.Log(obj.json);
                 EditorJsonUtility.FromJsonOverwrite(obj.json, scnObj);
