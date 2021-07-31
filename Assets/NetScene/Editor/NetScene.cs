@@ -38,7 +38,7 @@ namespace NetScene
         public Dictionary<int, PeerData> peers;
         public int sceneObjectCount = int.MinValue;
         int id = int.MinValue;
-        public int prevSelect;
+        public int? prevSelect;
         public int localId;
 
         private NetScene()
@@ -123,13 +123,14 @@ namespace NetScene
         {
             if (manager == null)
                 return;
-            if (UnitySceneObject.Get(prevSelect) != null)
+            if (prevSelect.HasValue && UnitySceneObject.Get(prevSelect.Value) != null)
                 manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
                 {
                     selected = false,
-                    obj = UnitySceneObject.Get(prevSelect),
+                    obj = UnitySceneObject.Get(prevSelect.Value),
                 }), DeliveryMethod.ReliableOrdered);
-            selections.Remove(prevSelect);
+            if (prevSelect.HasValue)
+                selections.Remove(prevSelect.Value);
             if (Selection.activeTransform == null)
                 return;
             {
@@ -139,8 +140,14 @@ namespace NetScene
                     obj = UnitySceneObject.Get(Selection.activeTransform),
                     id = localId,
                 }), DeliveryMethod.ReliableOrdered);
-                selections.Add(UnitySceneObject.Get(Selection.activeTransform).id, localId);
-                prevSelect = UnitySceneObject.Get(Selection.activeTransform).id;
+                var ob = UnitySceneObject.Get(Selection.activeTransform);
+                if (ob == null)
+                {
+                    prevSelect = null;
+                    return;
+                }
+                selections.Add(ob.id, localId);
+                prevSelect = ob.id;
             }
         }
 
@@ -360,6 +367,8 @@ namespace NetScene
                 }
                 if (isServer)
                     Undo.RecordObject(scnObj, $"{peer.EndPoint} Network Modify Object {scnObj}");
+                Debug.Log(scnObj);
+                Debug.Log(obj.json);
                 EditorJsonUtility.FromJsonOverwrite(obj.json, scnObj);
             }
         }
