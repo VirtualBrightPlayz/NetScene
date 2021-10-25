@@ -40,6 +40,7 @@ namespace NetScene
         int id = int.MinValue;
         public int? prevSelect;
         public int localId;
+        public Queue<SpawnObjectPacket> spawnQueue;
 
         private NetScene()
         {
@@ -52,6 +53,7 @@ namespace NetScene
             isServer = true;
             selections.Clear();
             peers.Clear();
+            spawnQueue.Clear();
             id = int.MinValue;
             localId = -1;
             peers.Add(-1, new PeerData(localId, username, color));
@@ -71,6 +73,7 @@ namespace NetScene
             isServer = false;
             selections.Clear();
             peers.Clear();
+            spawnQueue.Clear();
             id = int.MinValue;
             localId = -1;
             EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
@@ -91,6 +94,7 @@ namespace NetScene
             password = string.Empty;
             selections = new Dictionary<int, int>();
             peers = new Dictionary<int, PeerData>();
+            spawnQueue = new Queue<SpawnObjectPacket>();
             manager = new NetManager(this);
             processor = new NetPacketProcessor();
             processor.RegisterNestedType<UnitySceneObjectPacket>();
@@ -110,6 +114,7 @@ namespace NetScene
         {
             _singleton = null;
             selections = null;
+            spawnQueue = null;
             peers = null;
             manager = null;
             processor = null;
@@ -245,21 +250,33 @@ namespace NetScene
         {
             if (obj != null)
             {
-                if (UnitySceneObject.Get(obj) == null)
+                UnitySceneObject sceneObject = null;
+                if (obj is GameObject gameObj)
+                {
+                    sceneObject = UnitySceneObject.Get(gameObj.transform);
+                }
+                else
+                {
+                    sceneObject = UnitySceneObject.Get(obj);
+                }
+                if (sceneObject == null)
                 {
                     switch (obj)
                     {
+                        case Transform xform:
+                            sceneObject = new UnitySceneObject(xform);
+                        break;
                         case Component cmp:
-                            new UnitySceneObject(cmp);
+                            sceneObject = new UnitySceneObject(cmp);
                         break;
                         case GameObject go:
-                            new UnitySceneObject(go.transform);
+                            sceneObject = new UnitySceneObject(go.transform);
                         break;
                     }
                 }
                 var packet = new SpawnObjectPacket()
                 {
-                    obj = UnitySceneObject.Get(obj),
+                    obj = sceneObject,
                     assetId = obj.GetType().AssemblyQualifiedName,
                     json = EditorJsonUtility.ToJson(obj, false)
                 };
@@ -274,6 +291,10 @@ namespace NetScene
                 return;
             }
             manager.PollEvents();
+            if (spawnQueue.Count > 0)
+            {
+                SpawnObject(spawnQueue.Dequeue(), manager.FirstPeer);
+            }
         }
 
         private void UserInfo(UserInfoPacket obj, NetPeer peer)
@@ -343,8 +364,6 @@ namespace NetScene
                 {
                     scnObj = go.transform;
                 }
-                Debug.Log(scnObj.name);
-                Debug.Log(obj.json);
                 EditorJsonUtility.FromJsonOverwrite(obj.json, scnObj);
             }
             else
@@ -354,7 +373,7 @@ namespace NetScene
                 {
                     var ob = new GameObject();
                     ob.transform.parent = UnitySceneObject.Get(obj.obj.parent)?.GetObject() as Transform;
-                    scnObj = ob;
+                    scnObj = ob.transform;
                 }
                 else if (t.IsSubclassOf(typeof(Component)))
                 {
@@ -363,16 +382,24 @@ namespace NetScene
                     {
                         scnObj = xform.gameObject.AddComponent(t);
                     }
+                    else if (ob is GameObject gameObject)
+                    {
+                        scnObj = gameObject.AddComponent(t);
+                    }
                 }
                 if (scnObj == null)
                 {
-                    Debug.Log(obj.assetId);
+                    Debug.LogWarning(obj.assetId);
+                    spawnQueue.Enqueue(obj);
                     return;
                 }
                 if (isServer)
                     Undo.RecordObject(scnObj, $"{peer.EndPoint} Network Modify Object {scnObj}");
-                Debug.Log(scnObj);
-                Debug.Log(obj.json);
+                if (UnitySceneObject.Get(scnObj) == null)
+                {
+                    if (scnObj is Component cmp)
+                        new UnitySceneObject(cmp);
+                }
                 EditorJsonUtility.FromJsonOverwrite(obj.json, scnObj);
             }
         }
@@ -467,12 +494,11 @@ namespace NetScene
             }
             foreach (var item in UnitySceneObject.objectLookup)
             {
-                Debug.Log(item.Key.name);
                 var packet = new SpawnObjectPacket()
                 {
                     obj = UnitySceneObject.Get(item.Key),
                     assetId = UnitySceneObject.Get(item.Value)?.GetObject().GetType().AssemblyQualifiedName,
-                    json = EditorJsonUtility.ToJson(item.Value, false)
+                    json = EditorJsonUtility.ToJson(item.Key, false)
                 };
                 peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
             }

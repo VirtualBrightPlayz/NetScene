@@ -202,6 +202,10 @@ namespace NetScene
         {
             if (obj == null)
                 return objectCount;
+            if (obj is GameObject go)
+            {
+                obj = go.transform;
+            }
             if (!objectLookup.ContainsKey(obj))
             {
                 objectLookup.Add(obj, ++objectCount);
