@@ -34,7 +34,6 @@ namespace NetScene
         public string username;
         public Color color;
         public bool isServer;
-        public Dictionary<int, int> selections;
         public Dictionary<int, PeerData> peers;
         public int sceneObjectCount = int.MinValue;
         int id = int.MinValue;
@@ -51,7 +50,6 @@ namespace NetScene
         public void Host(int port)
         {
             isServer = true;
-            selections.Clear();
             peers.Clear();
             spawnQueue.Clear();
             UnitySceneObject.Reset();
@@ -72,7 +70,6 @@ namespace NetScene
         public void Connect(string ip, int port)
         {
             isServer = false;
-            selections.Clear();
             peers.Clear();
             spawnQueue.Clear();
             UnitySceneObject.Reset();
@@ -94,7 +91,6 @@ namespace NetScene
         {
             Debug.Log("INIT");
             password = string.Empty;
-            selections = new Dictionary<int, int>();
             peers = new Dictionary<int, PeerData>();
             spawnQueue = new Queue<SpawnObjectPacket>();
             UnitySceneObject.Reset();
@@ -116,7 +112,6 @@ namespace NetScene
         public void OnDestroy()
         {
             _singleton = null;
-            selections = null;
             spawnQueue = null;
             peers = null;
             manager = null;
@@ -131,35 +126,12 @@ namespace NetScene
         {
             if (manager == null)
                 return;
-            if (prevSelect.HasValue && UnitySceneObject.Get(prevSelect.Value) != null)
-                manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
-                {
-                    selected = false,
-                    obj = UnitySceneObject.Get(prevSelect.Value),
-                    id = localId,
-                }), DeliveryMethod.ReliableOrdered);
-            if (prevSelect.HasValue)
-                selections.Remove(prevSelect.Value);
-            if (Selection.activeTransform == null)
-                return;
+            peers[localId].selected = Selection.transforms.Select(x => UnitySceneObject.Get(x).id).ToArray();
+            manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
             {
-                manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
-                {
-                    selected = true,
-                    obj = UnitySceneObject.Get(Selection.activeTransform),
-                    id = localId,
-                }), DeliveryMethod.ReliableOrdered);
-                var ob = UnitySceneObject.Get(Selection.activeTransform);
-                if (ob == null)
-                {
-                    prevSelect = null;
-                    Debug.LogWarning("Select - ob == null");
-                    return;
-                }
-                if (!selections.ContainsKey(ob.id))
-                    selections.Add(ob.id, localId);
-                prevSelect = ob.id;
-            }
+                obj = peers[localId].selected,
+                id = localId,
+            }), DeliveryMethod.ReliableOrdered);
         }
 
         private void Gui(SceneView view)
@@ -172,17 +144,18 @@ namespace NetScene
                 GUI.color = color;
                 Handles.Label(go.transform.position, username);
             }
-            foreach (var item in selections)
+            foreach (var item in peers)
             {
-                if (!peers.ContainsKey(item.Value))
-                    continue;
-                var ob = UnitySceneObject.Get(item.Key)?.GetObject();
-                if (ob is Transform go)
+                foreach (var obj in item.Value.selected)
                 {
-                    Handles.color = peers[item.Value].color;
-                    Handles.DrawWireDisc(go.transform.position, (view.camera.transform.position - go.transform.position).normalized, 1f);
-                    GUI.color = peers[item.Value].color;
-                    Handles.Label(go.transform.position, peers[item.Value].name);
+                    var ob = UnitySceneObject.Get(obj)?.GetObject();
+                    if (ob is Transform go && go.gameObject.activeInHierarchy)
+                    {
+                        Handles.color = item.Value.color;
+                        Handles.DrawWireDisc(go.transform.position, (view.camera.transform.position - go.transform.position).normalized, 1f);
+                        GUI.color = item.Value.color;
+                        Handles.Label(go.transform.position, item.Value.name);
+                    }
                 }
             }
         }
@@ -324,12 +297,15 @@ namespace NetScene
                 {
                     id = peer.Id,
                     color = obj.color,
-                    name = obj.name
+                    name = obj.name,
+                    delete = false
                 }), DeliveryMethod.ReliableOrdered);
                 return;
             }
-            else if (!peers.ContainsKey(obj.id))
+            else if (!obj.delete && !peers.ContainsKey(obj.id))
                 peers.Add(obj.id, new PeerData(obj.id, obj.name, obj.color));
+            else if (obj.delete && peers.ContainsKey(obj.id))
+                peers.Remove(obj.id);
         }
 
         private void OnSetLocalId(UserSetInfoPacket obj, NetPeer peer)
@@ -343,28 +319,12 @@ namespace NetScene
 
         private void OnSelectPacket(SelectPacket obj, NetPeer peer)
         {
-            if (selections.ContainsKey(obj.obj.id))
-            {
-                if (obj.selected)
-                {
-                    selections[obj.obj.id] = peers[obj.id].id;
-                }
-                else
-                {
-                    selections.Remove(obj.obj.id);
-                }
-            }
-            else
-            {
-                if (obj.selected)
-                {
-                    selections.Add(obj.obj.id, peers[obj.id].id);
-                }
-            }
             if (isServer)
             {
+                obj.id = peer.Id;
                 manager.SendToAll(processor.WriteNetSerializable(obj), DeliveryMethod.ReliableOrdered, peer);
             }
+            peers[obj.id].selected = obj.obj;
         }
 
         private void SpawnObject(SpawnObjectPacket obj, NetPeer peer)
@@ -372,6 +332,7 @@ namespace NetScene
             var scnObj = ((UnitySceneObject)obj.obj)?.GetObject();
             if (scnObj != null)
             {
+                scnObj.name = obj.obj.name;
                 if (isServer)
                     Undo.RecordObject(scnObj, $"{peer.EndPoint} Network Modify Object {scnObj.name}");
                 if (scnObj is GameObject go)
@@ -385,9 +346,16 @@ namespace NetScene
                 Type t = Type.GetType(obj.assetId);
                 if (t.IsSubclassOf(typeof(Transform)) || t == typeof(Transform))
                 {
-                    var ob = new GameObject(obj.obj.id.ToString());
+                    var ob = new GameObject(obj.obj.name);
                     ob.transform.parent = UnitySceneObject.Get(obj.obj.parent)?.GetObject() as Transform;
-                    scnObj = ob.transform;
+                    if (t.IsSubclassOf(typeof(Transform)))
+                    {
+                        scnObj = ob.AddComponent(t);
+                    }
+                    else
+                    {
+                        scnObj = ob.transform;
+                    }
                 }
                 else if (t.IsSubclassOf(typeof(Component)))
                 {
@@ -395,6 +363,10 @@ namespace NetScene
                     if (ob is Transform xform)
                     {
                         scnObj = xform.gameObject.AddComponent(t);
+                        if (scnObj == null)
+                        {
+                            scnObj = xform.gameObject.GetComponent(t);
+                        }
                     }
                     else if (ob is GameObject gameObject)
                     {
@@ -488,7 +460,8 @@ namespace NetScene
                 manager.SendToAll(processor.WriteNetSerializable(new UserInfoPacket()
                 {
                     color = color,
-                    name = username
+                    name = username,
+                    delete = false
                 }), DeliveryMethod.ReliableOrdered);
                 return;
             }
@@ -502,9 +475,16 @@ namespace NetScene
                 {
                     id = item.Value.id,
                     color = item.Value.color,
-                    name = item.Value.name
+                    name = item.Value.name,
+                    delete = false
                 };
                 peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
+                var packet2 = new SelectPacket()
+                {
+                    id = item.Value.id,
+                    obj = item.Value.selected
+                };
+                peer.Send(processor.WriteNetSerializable(packet2), DeliveryMethod.ReliableOrdered);
             }
             foreach (var item in UnitySceneObject.objectLookup)
             {
@@ -516,21 +496,28 @@ namespace NetScene
                 };
                 peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
             }
-            foreach (var item in selections)
-            {
-                var packet = new SelectPacket()
-                {
-                    selected = true,
-                    obj = UnitySceneObject.Get(item.Key),
-                    id = item.Value
-                };
-                peer.Send(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
-            }
         }
 
         void INetEventListener.OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
         {
             Debug.Log($"{peer.EndPoint.ToString()} disconnected.");
+            if (isServer)
+            {
+                if (peers.ContainsKey(peer.Id))
+                {
+                    peers.Remove(peer.Id);
+                    var packet = new UserInfoPacket()
+                    {
+                        delete = true,
+                        id = peer.Id,
+                    };
+                    manager.SendToAll(processor.WriteNetSerializable(packet), DeliveryMethod.ReliableOrdered);
+                }
+            }
+            else
+            {
+                Stop();
+            }
         }
     }
 }

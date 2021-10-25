@@ -8,6 +8,7 @@ namespace NetScene
         public int id;
         public string name;
         public Color color;
+        public int[] selected = new int[0];
 
         public PeerData(int id, string name, Color color)
         {

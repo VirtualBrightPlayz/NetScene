@@ -77,12 +77,14 @@ namespace NetScene
         public int id;
         public string name;
         public Color color;
+        public bool delete;
 
         void INetSerializable.Deserialize(NetDataReader reader)
         {
             id = reader.GetInt();
             name = reader.GetString();
             color = new Color(reader.GetFloat(), reader.GetFloat(), reader.GetFloat(), 1f);
+            delete = reader.GetBool();
         }
 
         void INetSerializable.Serialize(NetDataWriter writer)
@@ -92,27 +94,25 @@ namespace NetScene
             writer.Put(color.r);
             writer.Put(color.g);
             writer.Put(color.b);
+            writer.Put(delete);
         }
     }
 
     public struct SelectPacket : INetSerializable
     {
-        public bool selected;
         public int id;
-        public UnitySceneObjectPacket obj;
+        public int[] obj;
 
         void INetSerializable.Deserialize(NetDataReader reader)
         {
-            selected = reader.GetBool();
             id = reader.GetInt();
-            obj = reader.Get<UnitySceneObjectPacket>();
+            obj = reader.GetIntArray();
         }
 
         void INetSerializable.Serialize(NetDataWriter writer)
         {
-            writer.Put(selected);
             writer.Put(id);
-            writer.Put(obj);
+            writer.PutArray(obj);
         }
     }
 
@@ -121,12 +121,14 @@ namespace NetScene
         public int id;
         public int parent;
         public bool isNull;
+        public string name;
 
         public void Deserialize(NetDataReader reader)
         {
             id = reader.GetInt();
             parent = reader.GetInt();
             isNull = reader.GetBool();
+            name = reader.GetString();
         }
 
         public void Serialize(NetDataWriter writer)
@@ -134,6 +136,7 @@ namespace NetScene
             writer.Put(id);
             writer.Put(parent);
             writer.Put(isNull);
+            writer.Put(name);
         }
     }
 
@@ -145,6 +148,7 @@ namespace NetScene
         public int id;
         public int parent;
         public bool isNull = false;
+        public string name;
 
         public static void Reset()
         {
@@ -162,6 +166,7 @@ namespace NetScene
             if (obj == null)
                 return;
             id = GetId(obj);
+            name = obj.name;
             if (obj is Transform transform)
                 parent = GetId(transform.parent);
             else
@@ -191,6 +196,7 @@ namespace NetScene
                 {
                     return null;
                 }
+                sceneObjectLookup[id].name = obj.name;
                 return sceneObjectLookup[id];
             }
             return null;
@@ -224,13 +230,15 @@ namespace NetScene
         {
             id = d == null ? default : d.id,
             parent = d == null ? default : d.parent,
-            isNull = d == null
+            isNull = d == null,
+            name = d == null ? default : d.name
         };
         public static implicit operator UnitySceneObject(UnitySceneObjectPacket d) => new UnitySceneObject()
         {
             id = d.id,
             parent = d.parent,
-            isNull = d.isNull
+            isNull = d.isNull,
+            name = d.name
         };
     }
 }

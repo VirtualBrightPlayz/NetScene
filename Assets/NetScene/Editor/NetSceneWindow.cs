@@ -56,13 +56,6 @@ namespace NetScene
                     {
                         GUILayout.Label($"({item.Key}) {item.Value.id} - {item.Value.name} - {item.Value.color}");
                     }
-                    foreach (var item in netScene.selections)
-                    {
-                        if (GUILayout.Button($"{item.Key} - {netScene.peers[item.Value].name}"))
-                        {
-                            Selection.activeObject = UnitySceneObject.Get(item.Key)?.GetObject();
-                        }
-                    }
                     if (GUILayout.Button("Stop"))
                     {
                         netScene.Stop();
@@ -83,6 +76,10 @@ namespace NetScene
                         netScene.color = color;
                         netScene.password = password;
                         netScene.Connect(ip, port);
+                    }
+                    if (GUILayout.Button("Stop"))
+                    {
+                        netScene.Stop();
                     }
                 }
             }
