@@ -373,6 +373,11 @@ namespace NetScene
                         scnObj = gameObject.AddComponent(t);
                     }
                 }
+                else
+                {
+                    Debug.LogError($"Unsupported type: {obj.assetId}");
+                    return;
+                }
                 if (scnObj == null)
                 {
                     Debug.LogWarning(obj.assetId);
