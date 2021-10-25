@@ -54,6 +54,7 @@ namespace NetScene
             selections.Clear();
             peers.Clear();
             spawnQueue.Clear();
+            UnitySceneObject.Reset();
             id = int.MinValue;
             localId = -1;
             peers.Add(-1, new PeerData(localId, username, color));
@@ -74,6 +75,7 @@ namespace NetScene
             selections.Clear();
             peers.Clear();
             spawnQueue.Clear();
+            UnitySceneObject.Reset();
             id = int.MinValue;
             localId = -1;
             EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
@@ -95,6 +97,7 @@ namespace NetScene
             selections = new Dictionary<int, int>();
             peers = new Dictionary<int, PeerData>();
             spawnQueue = new Queue<SpawnObjectPacket>();
+            UnitySceneObject.Reset();
             manager = new NetManager(this);
             processor = new NetPacketProcessor();
             processor.RegisterNestedType<UnitySceneObjectPacket>();
@@ -133,6 +136,7 @@ namespace NetScene
                 {
                     selected = false,
                     obj = UnitySceneObject.Get(prevSelect.Value),
+                    id = localId,
                 }), DeliveryMethod.ReliableOrdered);
             if (prevSelect.HasValue)
                 selections.Remove(prevSelect.Value);
@@ -149,21 +153,31 @@ namespace NetScene
                 if (ob == null)
                 {
                     prevSelect = null;
+                    Debug.LogWarning("Select - ob == null");
                     return;
                 }
-                selections.Add(ob.id, localId);
+                if (!selections.ContainsKey(ob.id))
+                    selections.Add(ob.id, localId);
                 prevSelect = ob.id;
             }
         }
 
         private void Gui(SceneView view)
         {
+            if (Selection.activeTransform != null)
+            {
+                var go = Selection.activeTransform;
+                Handles.color = color;
+                Handles.DrawWireDisc(go.transform.position, (view.camera.transform.position - go.transform.position).normalized, 1f);
+                GUI.color = color;
+                Handles.Label(go.transform.position, username);
+            }
             foreach (var item in selections)
             {
                 if (!peers.ContainsKey(item.Value))
                     continue;
                 var ob = UnitySceneObject.Get(item.Key)?.GetObject();
-                if (ob is GameObject go)
+                if (ob is Transform go)
                 {
                     Handles.color = peers[item.Value].color;
                     Handles.DrawWireDisc(go.transform.position, (view.camera.transform.position - go.transform.position).normalized, 1f);
@@ -314,7 +328,7 @@ namespace NetScene
                 }), DeliveryMethod.ReliableOrdered);
                 return;
             }
-            else
+            else if (!peers.ContainsKey(obj.id))
                 peers.Add(obj.id, new PeerData(obj.id, obj.name, obj.color));
         }
 
@@ -371,7 +385,7 @@ namespace NetScene
                 Type t = Type.GetType(obj.assetId);
                 if (t.IsSubclassOf(typeof(Transform)) || t == typeof(Transform))
                 {
-                    var ob = new GameObject();
+                    var ob = new GameObject(obj.obj.id.ToString());
                     ob.transform.parent = UnitySceneObject.Get(obj.obj.parent)?.GetObject() as Transform;
                     scnObj = ob.transform;
                 }
@@ -486,7 +500,7 @@ namespace NetScene
             {
                 var packet = new UserInfoPacket()
                 {
-                    id = item.Key,
+                    id = item.Value.id,
                     color = item.Value.color,
                     name = item.Value.name
                 };

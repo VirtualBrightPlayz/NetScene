@@ -146,6 +146,13 @@ namespace NetScene
         public int parent;
         public bool isNull = false;
 
+        public static void Reset()
+        {
+            objectLookup.Clear();
+            sceneObjectLookup.Clear();
+            objectCount = int.MinValue;
+        }
+
         public UnitySceneObject()
         {
         }

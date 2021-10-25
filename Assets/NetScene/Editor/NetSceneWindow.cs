@@ -52,6 +52,17 @@ namespace NetScene
                 if (netScene.manager != null && netScene.manager.IsRunning)
                 {
                     GUILayout.Label("Connected.");
+                    foreach (var item in netScene.peers)
+                    {
+                        GUILayout.Label($"({item.Key}) {item.Value.id} - {item.Value.name} - {item.Value.color}");
+                    }
+                    foreach (var item in netScene.selections)
+                    {
+                        if (GUILayout.Button($"{item.Key} - {netScene.peers[item.Value].name}"))
+                        {
+                            Selection.activeObject = UnitySceneObject.Get(item.Key)?.GetObject();
+                        }
+                    }
                     if (GUILayout.Button("Stop"))
                     {
                         netScene.Stop();
