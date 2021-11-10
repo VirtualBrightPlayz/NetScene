@@ -124,7 +124,7 @@ namespace NetScene
 
         private void Select()
         {
-            if (manager == null)
+            if (manager == null || !peers.ContainsKey(localId))
                 return;
             peers[localId].selected = Selection.transforms.Select(x => UnitySceneObject.Get(x).id).ToArray();
             manager.SendToAll(processor.WriteNetSerializable(new SelectPacket()
